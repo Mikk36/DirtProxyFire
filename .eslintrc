@@ -1,0 +1,9 @@
+{
+  "extends": "google",
+  "rules": {
+    "linebreak-style": ["error", "windows"],
+    "max-len": ["error", {
+      "code": 120
+    }]
+  }
+}

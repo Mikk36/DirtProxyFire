@@ -1,0 +1,24 @@
+{
+  "name": "dirtproxyfire",
+  "version": "0.0.1",
+  "main": "app.js",
+  "author": "Mikk Kiilaspää",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mikk36/DirtProxyFire.git"
+  },
+  "dependencies": {
+    "console-stamp": "^0.2.2",
+    "express": "^4.14.0",
+    "firebase": "^3.3.2",
+    "fs-extra": "^0.30.0",
+    "jsonfile": "^2.3.1",
+    "morgan": "^1.7.0",
+    "node-schedule": "^1.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.5.0",
+    "eslint-config-google": "^0.6.0"
+  }
+}
