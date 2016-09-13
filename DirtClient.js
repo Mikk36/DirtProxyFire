@@ -16,25 +16,16 @@ class DirtClient {
    * @return {Promise.<EventData>|undefined} Event data Promise
    */
   fetchData(id) {
-    if (this._activeIDList.hasOwnProperty(String(id))) {
-      return;
-    }
-
-    this._activeIDList[String(id)] = true;
-
     /**
      * @type {EventData}
      */
     let eventData = {
       id: id,
-      totalTime: 0,
-      startTime: Date.now(),
       stages: [],
       requestCount: 1,
       timeTotal: 0,
       timeReal: 0,
-      stageCount: null,
-      ssFinished: null
+      overallResponse: null
     };
     let start = Date.now();
 
@@ -43,7 +34,15 @@ class DirtClient {
       // then fetch more stages according to TotalStages with delays
       // then combine data
 
+      if (this._activeIDList.hasOwnProperty(String(id))) {
+        reject(new Error(`DirtClient already busy with fetching data for ${id}.`));
+        return;
+      }
+
+      this._activeIDList[String(id)] = true;
+
       DirtClient._fetchAPI([id]).then(data => {
+        eventData.overallResponse = data;
         let stageCount = data.response.TotalStages;
         let stagePromises = [];
         for (let stageNumber = 1; stageNumber <= stageCount; stageNumber++) {
@@ -58,21 +57,36 @@ class DirtClient {
         }
         Promise.all(stagePromises).then(/** Array.<StageData> */ results => {
           // combine results
-          console.log("All stages fetched");
           eventData.timeReal = Date.now() - start;
+          console.log(`All stages fetched in ${(eventData.timeReal / 1000).toFixed(1)} seconds`);
           results.forEach(stage => {
             eventData.stages[stage.stage - 1] = stage;
             eventData.requestCount += stage.requestCount;
             eventData.timeTotal += stage.timeTotal;
           });
+
+          if (eventData.overallResponse.response.TotalStages !== eventData.stages.length) {
+            reject(new Error(`Stages array length (${eventData.overallResponse.response.TotalStages
+                }) does not equal intended length (${eventData.stages.length})`));
+            return;
+          }
+
           resolve(eventData);
         }).catch(err => {
-          console.log(err);
+          // console.log(err);
+          this._removeActive(id);
+          reject(err);
         });
       }, err => {
+        this._removeActive(id);
         reject(err);
       });
     });
+  }
+
+  _removeActive(id) {
+    delete this._activeIDList[String(id)];
+    console.log(`Removed ${id} from active list`);
   }
 
   /**
@@ -96,6 +110,7 @@ class DirtClient {
       timeReal: 0,
       pages: [data]
     };
+
     let start = Date.now();
 
     let pagePromises = [];
@@ -126,6 +141,11 @@ class DirtClient {
         }
       });
       delete stageData.pages;
+
+      if (stageData.singlePage.LeaderboardTotal !== stageData.singlePage.Entries.length) {
+        reject(new Error("Entries count does not equal LeaderboardTotal"));
+        return;
+      }
 
       resolve(stageData);
     }).catch(err => {
@@ -244,28 +264,22 @@ class DirtClient {
   /**
    * Container for response data before saving
    * @typedef {Object} EventData
-   * @property {number} id - Event ID
-   * @property {number} totalTime - Total cumulative time taken for each request
-   * @property {number} startTime - Time of beginning the update
-   * @property {Array.<StageData>} stages - Array of stages
-   * @property {number} requestCount - Amount of requests made
-   * @property {number} timeTotal
-   * @property {number} timeReal
-   * @property {number|null} stageCount - Amount of stages
-   * @property {number|null} ssFinished - Amount of processed stages
+   * @property {number} id Event ID
+   * @property {Array.<StageData>} stages Array of stages
+   * @property {number} requestCount Amount of requests made
+   * @property {number} timeTotal Total sum of time taken for each request separately
+   * @property {number} timeReal Actual time from first start of first request to finishing the last request
+   * @property {APIResponseContainer|null} overallResponse API Response for stage 0 (overall) page 1
    */
 
   /**
    * @callback ResolveCallback
-   * @param {T} result
-   * @template T
+   * @param {*} result
    */
 
   /**
    * @callback RejectedCallback
    * @param {Error} reason - Rejected reason
-   * @returns {S}
-   * @template S
    */
 }
 

@@ -19,13 +19,13 @@ class Server {
     this.config = Server.loadConfig();
     this.dirtClient = new DirtClient();
 
-    // this.dirtClient.fetchData(146716).then(data => {
-    //   // console.log(JSON.stringify(data, null, 2));
-    //   jsonFile.writeFileSync("sample.json", data, {spaces: 2});
-    //   console.log("Data received");
-    // }).catch(err => {
-    //   console.log(err);
-    // });
+    this.dirtClient.fetchData(146716).then(data => {
+      // console.log(JSON.stringify(data, null, 2));
+      // jsonFile.writeFileSync("sample.json", data, {spaces: 2});
+      console.log("Data received");
+    }).catch(err => {
+      console.log(err);
+    });
   }
 
   /**
