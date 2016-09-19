@@ -1,9 +1,24 @@
 {
   "extends": "google",
   "rules": {
-    "linebreak-style": ["error", "windows"],
-    "max-len": ["error", {
-      "code": 120
-    }]
+    "linebreak-style": [
+      "error",
+      "windows"
+    ],
+    "max-len": [
+      "error",
+      {
+        "code": 120
+      }
+    ],
+    "valid-jsdoc": [
+      "error",
+      {
+        "prefer": {
+          "return": "returns"
+        },
+        "requireReturn": false
+      }
+    ]
   }
 }

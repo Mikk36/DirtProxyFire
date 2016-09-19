@@ -6,7 +6,7 @@ const Server = require("./server");
 let server = null;
 try {
   server = new Server();
-  // server.listen();
+  server.updateTimes();
 } catch (err) {
   console.error(err);
 }

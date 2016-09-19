@@ -13,7 +13,7 @@ class DirtClient {
   /**
    * Fetch data from Dirt API
    * @param {number} id Event ID
-   * @return {Promise.<EventData>|undefined} Event data Promise
+   * @returns {Promise.<EventData>|undefined} Event data Promise
    */
   fetchData(id) {
     /**
@@ -25,7 +25,8 @@ class DirtClient {
       requestCount: 1,
       timeTotal: 0,
       timeReal: 0,
-      overallResponse: null
+      overallResponse: null,
+      assisted: []
     };
     let start = Date.now();
 
@@ -47,7 +48,6 @@ class DirtClient {
         let stagePromises = [];
         for (let stageNumber = 1; stageNumber <= stageCount; stageNumber++) {
           stagePromises.push(new Promise((stageResolve, stageReject) => {
-            eventData.requestCount++;
             DirtClient._fetchAPI([id, stageNumber]).then(stageData => {
               this._processStage(stageResolve, stageReject, stageData);
             }).catch(err => {
@@ -55,10 +55,10 @@ class DirtClient {
             });
           }));
         }
-        Promise.all(stagePromises).then(/** Array.<StageData> */ results => {
+        Promise.all(stagePromises).then(/** Array.<StageData> */ results => { // eslint-disable-line valid-jsdoc
           // combine results
           eventData.timeReal = Date.now() - start;
-          console.log(`All stages fetched in ${(eventData.timeReal / 1000).toFixed(1)} seconds`);
+          console.log(`${eventData.id} fetched in ${(eventData.timeReal / 1000).toFixed(1)} seconds`);
           results.forEach(stage => {
             eventData.stages[stage.stage - 1] = stage;
             eventData.requestCount += stage.requestCount;
@@ -68,10 +68,23 @@ class DirtClient {
           if (eventData.overallResponse.response.TotalStages !== eventData.stages.length) {
             reject(new Error(`Stages array length (${eventData.overallResponse.response.TotalStages
                 }) does not equal intended length (${eventData.stages.length})`));
-            return;
           }
-
-          resolve(eventData);
+        }).then(() => {
+          let assistPromise = new Promise((assistsResolve, assistsReject) => {
+            DirtClient._fetchAPI([id, 0, 1, true]).then(assistsData => {
+              this._processAssists(assistsResolve, assistsReject, assistsData);
+            });
+          });
+          assistPromise.then(assistResponse => {
+            eventData.assisted = assistResponse.assistList;
+            eventData.requestCount += assistResponse.requestCount;
+            eventData.timeTotal += assistResponse.timeTotal;
+            resolve(eventData);
+            this._removeActive(id);
+          }).catch(err => {
+            this._removeActive(id);
+            reject(err);
+          });
         }).catch(err => {
           // console.log(err);
           this._removeActive(id);
@@ -84,9 +97,56 @@ class DirtClient {
     });
   }
 
+  /**
+   * Removes event ID from the list of active fetch jobs
+   * @param {number} id Event ID
+   * @private
+   */
   _removeActive(id) {
     delete this._activeIDList[String(id)];
-    console.log(`Removed ${id} from active list`);
+    // console.log(`Removed ${id} from active list`);
+  }
+
+  /**
+   * Check for people having used assists and return that list
+   * @param {ResolveCallback} resolve Resolve callback
+   * @param {RejectedCallback} reject Rejected callback
+   * @param {APIResponseContainer} data API Response container
+   * @private
+   */
+  _processAssists(resolve, reject, data) {
+    let assistResponse = {
+      assistList: [],
+      timeTotal: data.responseTime,
+      requestCount: 1
+    };
+    data.response.Entries.forEach(entry => {
+      assistResponse.assistList.push(entry.Name);
+    });
+
+    let pagePromises = [];
+    for (let pageNumber = 2; pageNumber <= data.response.Pages; pageNumber++) {
+      pagePromises.push(new Promise((pageResolve, pageReject) => {
+        DirtClient._fetchAPI([data.id, data.stage, pageNumber, true]).then(pageData => {
+          // console.log(`Stage ${pageData.stage} page ${pageData.page} fetched`);
+          pageResolve(pageData);
+        }).catch(err => {
+          pageReject(err);
+        });
+      }));
+    }
+    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */ results => { // eslint-disable-line valid-jsdoc
+      results.forEach(pageData => {
+        assistResponse.requestCount++;
+        assistResponse.timeTotal += pageData.responseTime;
+        pageData.response.Entries.forEach(entry => {
+          assistResponse.assistList.push(entry.Name);
+        });
+      });
+      resolve(assistResponse);
+    }).catch(err => {
+      reject(err);
+    });
   }
 
   /**
@@ -106,34 +166,30 @@ class DirtClient {
       stage: data.stage,
       requestCount: 1,
       pageCount: data.response.Pages,
-      timeTotal: 0,
-      timeReal: 0,
+      timeTotal: data.responseTime,
       pages: [data]
     };
-
-    let start = Date.now();
 
     let pagePromises = [];
     for (let pageNumber = 2; pageNumber <= stageData.pageCount; pageNumber++) {
       pagePromises.push(new Promise((pageResolve, pageReject) => {
-        stageData.requestCount++;
         DirtClient._fetchAPI([data.id, data.stage, pageNumber]).then(pageData => {
-          console.log(`Stage ${pageData.stage} page ${pageData.page} fetched`);
+          // console.log(`Stage ${pageData.stage} page ${pageData.page} fetched`);
           pageResolve(pageData);
         }).catch(err => {
           pageReject(err);
         });
       }));
     }
-    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */ results => {
-      console.log(`Stage ${stageData.stage} finished`);
-      stageData.timeReal = Date.now() - start;
+    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */ results => { // eslint-disable-line valid-jsdoc
+      // console.log(`Stage ${stageData.stage} finished`);
       results.forEach(pageData => {
         stageData.pages[pageData.page - 1] = pageData;
+        stageData.requestCount++;
         stageData.timeTotal += pageData.responseTime;
       });
 
-      stageData.pages.forEach(/** APIResponseContainer */ page => {
+      stageData.pages.forEach(/** APIResponseContainer */ page => { // eslint-disable-line valid-jsdoc
         if (page.page === 1) {
           stageData.singlePage = page.response;
         } else {
@@ -158,14 +214,15 @@ class DirtClient {
    * @param {number} id Event ID
    * @param {number} stage Stage number
    * @param {number} page Page number
-   * @return {Promise.<APIResponseContainer>} JSON response from API
+   * @param {boolean} assists Assists check enabled/disabled
+   * @returns {Promise.<APIResponseContainer>} JSON response from API
    * @private
    */
-  static _fetchAPI([id, stage = 0, page = 1]) {
+  static _fetchAPI([id, stage = 0, page = 1, assists = false]) {
     // console.log(`Values: ID: ${id}, stage: ${stage}, page: ${page}`);
     return new Promise((resolve, reject) => {
       let startTime = Date.now();
-      http.get(`https://www.dirtgame.com/uk/api/event?assists=any&eventId=${id
+      http.get(`https://www.dirtgame.com/uk/api/event?assists=${assists ? "enabled" : "any"}&eventId=${id
           }&leaderboard=true&noCache=${Date.now()}&stageId=${stage}&page=${page}`, res => {
         let body = "";
         res.on("data", chunk => {
@@ -256,7 +313,6 @@ class DirtClient {
    * @property {number} requestCount
    * @property {number} pageCount
    * @property {number} timeTotal
-   * @property {number} timeReal
    * @property {Array.<APIResponseContainer>|undefined} pages
    * @property {APIResponse|undefined} singlePage
    */
@@ -270,6 +326,7 @@ class DirtClient {
    * @property {number} timeTotal Total sum of time taken for each request separately
    * @property {number} timeReal Actual time from first start of first request to finishing the last request
    * @property {APIResponseContainer|null} overallResponse API Response for stage 0 (overall) page 1
+   * @property {Array.<string>} assisted List of people having assists enabled
    */
 
   /**
