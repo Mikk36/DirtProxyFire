@@ -130,7 +130,7 @@ class Server {
       this.state.rallies[snap.key] = value;
       if (value.finished === false) {
         this.state.activeRallyList.push(snap.key);
-        console.log(`Added ${snap.key} to activeRallyList`);
+        console.log(`Added "${value.name}" to activeRallyList`);
         this._fetchRaces(snap.key);
       }
     });
@@ -145,10 +145,10 @@ class Server {
         let index = this.state.activeRallyList.indexOf(snap.key);
         if (index >= 0) {
           this.state.activeRallyList.splice(index, 1);
-          console.log(`Removed ${snap.key} from activeRallyList`);
+          console.log(`Removed "${value.name}" from activeRallyList`);
         } else {
           this.state.activeRallyList.push(snap.key);
-          console.log(`Added ${snap.key} to activeRallyList`);
+          console.log(`Added "${value.name}" to activeRallyList`);
         }
       }
     });
@@ -243,7 +243,12 @@ class Server {
    */
   _analyzeAPI(data, rallyKey) {
     let timeList = {};
-    data.stages.forEach(stage => {
+    data.stages.forEach((stage, i) => {
+      if (i < data.stages.length) {
+        if (stage.singlePage.Entries.length < data.stages[i + 1].singlePage.Entries.length) {
+          throw new Error("Stage has less entries than the next one after it");
+        }
+      }
       stage.singlePage.Entries.forEach(entry => {
         if (timeList[entry.Name] === undefined) {
           timeList[entry.Name] = {

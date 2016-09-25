@@ -90,7 +90,7 @@ class DirtClient {
           this._removeActive(id);
           reject(err);
         });
-      }, err => {
+      }).catch(err => {
         this._removeActive(id);
         reject(err);
       });
