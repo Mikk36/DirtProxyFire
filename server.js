@@ -54,6 +54,10 @@ class Server {
     // this._addRally("1. Rallye Monte-Carlo 2016 Historic", "-KRyIYnW-LXxXwalMSFw", [149003]);
   }
 
+  /**
+   * Ensure that there is a cache folder to write data to
+   * @private
+   */
   static _createCacheFolder() {
     let dir = './cache';
 
@@ -85,12 +89,14 @@ class Server {
     rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
       this.dirtClient.fetchData(eventID).then(data => {
         this._analyzeAPI(data, rallyKey);
-        jsonFile.writeFile(
-            `cache/${data.id}.json`,
-            data,
-            {spaces: 2}, () => { // eslint-disable-line max-nested-callbacks
-            }
-        );
+        if (this.config.writeCache) {
+          jsonFile.writeFile(
+              `cache/${data.id}.json`,
+              data,
+              {spaces: 2}, () => { // eslint-disable-line max-nested-callbacks
+              }
+          );
+        }
       });
     });
   }

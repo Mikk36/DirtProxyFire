@@ -1,4 +1,5 @@
 {
   "listeningPort": 3021,
-  "cron": "*/3 * * * *"
+  "cron": "*/3 * * * *",
+  "writeCache": false
 }
