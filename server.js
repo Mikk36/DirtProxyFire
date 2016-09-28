@@ -31,6 +31,7 @@ class Server {
       seasons: {},
       rallies: {},
       races: {},
+      drivers: {},
       activeRallyList: []
     };
 
@@ -39,6 +40,11 @@ class Server {
 
     this.dirtClient = new DirtClient();
     this.resultsManager = new ResultsManager(this.state);
+
+    // -KRyJ61EOUJXExtq5MJu
+    // setTimeout(() => {
+    //   this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
+    // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
     //   // console.log(JSON.stringify(data, null, 2));
@@ -109,12 +115,11 @@ class Server {
     this.refList = {
       leagues: this.db.ref("leagues"), // EVAL Liiga, EVAL Historic
       seasons: this.db.ref("seasons"), // 2016 I, 2016 II, contains info about rallies in a league, classes
-      classes: this.db.ref("classes"), // WRC, WRC2 (unique per season), allowed cars for each
       rallies: this.db.ref("rallies"), // Portugal WRC 2016 II, Finland WRC 2016 II, event IDs, contains also
       // punishments
       races: this.db.ref("races"), // Individual race times
-      drivers: this.db.ref("drivers"), // Driver real name, userNames, team
-      teams: this.db.ref("teams") // Team name, team drivers
+      drivers: this.db.ref("drivers"), // Driver real name, userNames
+      rallyTeams: this.db.ref("rallyTeams") // Team name, team drivers
     };
   }
 
@@ -126,6 +131,7 @@ class Server {
     this._fetchLeagues();
     this._fetchSeasons();
     this._fetchRallies();
+    this._fetchDrivers();
   }
 
   /**
@@ -148,6 +154,18 @@ class Server {
     });
   }
 
+  _fetchDrivers() {
+    let addedChanged = snap => {
+      console.log(`Driver ${snap.key} added/changed`);
+      this.state.drivers[snap.key] = snap.val();
+    };
+    this.refList.drivers.on("child_added", addedChanged);
+    this.refList.drivers.on("child_removed", snap => {
+      console.log(`Driver ${snap.key} removed`);
+      delete this.state.drivers[snap.key];
+    });
+  }
+
   /**
    * Fetch rallies from the DB and keep them updated
    * @private
@@ -155,13 +173,24 @@ class Server {
   _fetchRallies() {
     this.refList.rallies.on("child_added", snap => {
       let value = snap.val();
+      value.teams = {};
       console.log(`Rally ${value.name} added`);
       this.state.rallies[snap.key] = value;
+
       if (value.finished === false) {
         this.state.activeRallyList.push(snap.key);
         console.log(`Added ${value.name} to activeRallyList`);
         this._fetchRaces(snap.key);
       }
+      this.refList.rallyTeams.on("child_added", teamSnap => {
+        this.state.rallies[teamSnap.key].teams = teamSnap.val();
+      });
+      this.refList.rallyTeams.on("child_changed", teamSnap => {
+        this.state.rallies[teamSnap.key].teams = teamSnap.val();
+      });
+      this.refList.rallyTeams.on("child_removed", teamSnap => {
+        this.state.rallies[teamSnap.key].teams = {};
+      });
     });
     this.refList.rallies.on("child_changed", snap => {
       let value = snap.val();
