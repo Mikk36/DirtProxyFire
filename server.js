@@ -163,6 +163,7 @@ class Server {
       } else if (index < 0) {
         this.state.activeRallyList.push(snap.key);
         console.log(`Added "${value.name}" to activeRallyList`);
+        this._fetchRaces(snap.key);
       }
     });
   }
