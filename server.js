@@ -14,6 +14,7 @@ const firebase = require("firebase");
 // const http = require("https");
 // const schedule = require("node-schedule");
 const DirtClient = require("./DirtClient");
+const ResultsManager = require("./ResultsManager");
 
 class Server {
   constructor() {
@@ -36,6 +37,7 @@ class Server {
     this._fetchState();
 
     this.dirtClient = new DirtClient();
+    this.resultsManager = new ResultsManager(this.state);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
     //   // console.log(JSON.stringify(data, null, 2));
