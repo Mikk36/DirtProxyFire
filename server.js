@@ -138,29 +138,31 @@ class Server {
   _fetchRallies() {
     this.refList.rallies.on("child_added", snap => {
       let value = snap.val();
+      console.log(`Rally ${value.name} added`);
       this.state.rallies[snap.key] = value;
       if (value.finished === false) {
         this.state.activeRallyList.push(snap.key);
-        console.log(`Added "${value.name}" to activeRallyList`);
+        console.log(`Added ${value.name} to activeRallyList`);
         this._fetchRaces(snap.key);
       }
     });
     this.refList.rallies.on("child_changed", snap => {
       let value = snap.val();
+      console.log(`Rally ${value.name} changed`);
       for (let key in value) {
         if (value.hasOwnProperty(key)) {
           this.state.rallies[snap.key][key] = value[key];
         }
       }
+      let index = this.state.activeRallyList.indexOf(snap.key);
       if (value.finished === true) {
-        let index = this.state.activeRallyList.indexOf(snap.key);
         if (index >= 0) {
           this.state.activeRallyList.splice(index, 1);
           console.log(`Removed "${value.name}" from activeRallyList`);
-        } else {
-          this.state.activeRallyList.push(snap.key);
-          console.log(`Added "${value.name}" to activeRallyList`);
         }
+      } else if (index < 0) {
+        this.state.activeRallyList.push(snap.key);
+        console.log(`Added "${value.name}" to activeRallyList`);
       }
     });
   }
