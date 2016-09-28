@@ -19,6 +19,7 @@ const ResultsManager = require("./ResultsManager");
 class Server {
   constructor() {
     this.config = Server._loadConfig();
+    Server._createCacheFolder();
 
     firebase.initializeApp({
       serviceAccount: "./firebase-service-account.json",
@@ -51,6 +52,14 @@ class Server {
 
     // this._addSeason("2016 II", "historic");
     // this._addRally("1. Rallye Monte-Carlo 2016 Historic", "-KRyIYnW-LXxXwalMSFw", [149003]);
+  }
+
+  static _createCacheFolder() {
+    let dir = './cache';
+
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir);
+    }
   }
 
   /**
