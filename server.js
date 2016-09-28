@@ -57,7 +57,9 @@ class Server {
   static _createCacheFolder() {
     let dir = './cache';
 
-    if (!fs.existsSync(dir)) {
+    try {
+      fs.accessSync(dir, fs.F_OK);
+    } catch (e) {
       fs.mkdirSync(dir);
     }
   }
