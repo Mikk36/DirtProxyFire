@@ -36,6 +36,10 @@ class Server {
     this._setupRefList();
     this._fetchState();
 
+    // this.refList.races.child("-KRyJ61EOUJXExtq5MJu").on("child_added", snap => {
+    //   console.log("Key: " + snap.key + " Value: " + snap.val());
+    // });
+
     this.dirtClient = new DirtClient();
     this.resultsManager = new ResultsManager(this.state);
 
@@ -162,8 +166,9 @@ class Server {
    * @private
    */
   _fetchRaces(rallyKey) {
-    this.refList.races.orderByChild("rallyKey").equalTo(rallyKey).on("child_added", snap => {
-      this.state.races[snap.key] = snap.val();
+    this.state.races[rallyKey] = {};
+    this.refList.races.child(rallyKey).on("child_added", snap => {
+      this.state.races[rallyKey][snap.key] = snap.val();
     });
   }
 
@@ -180,11 +185,10 @@ class Server {
    */
   _addRace(rallyKey, userName, stage, time, car, assists) {
     // check if such race result already exists
-    for (let key in this.state.races) {
-      if (this.state.races.hasOwnProperty(key)) {
-        let race = this.state.races[key];
-        if (rallyKey === race.rallyKey &&
-            userName === race.userName &&
+    for (let key in this.state.races[rallyKey]) {
+      if (this.state.races[rallyKey].hasOwnProperty(key)) {
+        let race = this.state.races[rallyKey][key];
+        if (userName === race.userName &&
             stage === race.stage &&
             time === race.time &&
             car === race.car &&
@@ -196,7 +200,6 @@ class Server {
     }
 
     let result = {
-      rallyKey: rallyKey,
       userName: userName,
       stage: stage,
       time: time,
@@ -204,7 +207,7 @@ class Server {
       assists: assists,
       timestamp: Date.now()
     };
-    this.refList.races.push(result);
+    this.refList.races.child(rallyKey).push(result);
     return true;
   }
 

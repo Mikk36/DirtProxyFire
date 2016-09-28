@@ -4,6 +4,9 @@
   "main": "app.js",
   "author": "Mikk Kiilaspää",
   "license": "ISC",
+  "scripts": {
+    "start": "node app.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Mikk36/DirtProxyFire.git"
