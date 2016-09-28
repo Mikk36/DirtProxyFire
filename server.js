@@ -36,10 +36,6 @@ class Server {
     this._setupRefList();
     this._fetchState();
 
-    // this.refList.races.child("-KRyJ61EOUJXExtq5MJu").on("child_added", snap => {
-    //   console.log("Key: " + snap.key + " Value: " + snap.val());
-    // });
-
     this.dirtClient = new DirtClient();
     this.resultsManager = new ResultsManager(this.state);
 
@@ -63,20 +59,29 @@ class Server {
   updateTimes() {
     setInterval(() => {
       this.state.activeRallyList.forEach(rallyKey => {
-        let rally = this.state.rallies[rallyKey];
-        rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
-          this.dirtClient.fetchData(eventID).then(data => {
-            this._analyzeAPI(data, rallyKey);
-            jsonFile.writeFile(
-                `cache/${data.id}.json`,
-                data,
-                {spaces: 2}, () => { // eslint-disable-line max-nested-callbacks
-                }
-            );
-          });
-        });
+        this._updateRallyTimes(rallyKey);
       });
     }, 60 * 1000);
+  }
+
+  /**
+   * Update times for a single rally
+   * @param {string} rallyKey Rally Key
+   * @private
+   */
+  _updateRallyTimes(rallyKey) {
+    let rally = this.state.rallies[rallyKey];
+    rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
+      this.dirtClient.fetchData(eventID).then(data => {
+        this._analyzeAPI(data, rallyKey);
+        jsonFile.writeFile(
+            `cache/${data.id}.json`,
+            data,
+            {spaces: 2}, () => { // eslint-disable-line max-nested-callbacks
+            }
+        );
+      });
+    });
   }
 
   /**
@@ -249,7 +254,7 @@ class Server {
   _analyzeAPI(data, rallyKey) {
     let timeList = {};
     data.stages.forEach((stage, i) => {
-      if (i < data.stages.length) {
+      if (i + 1 < data.stages.length) {
         if (stage.singlePage.Entries.length < data.stages[i + 1].singlePage.Entries.length) {
           throw new Error("Stage has less entries than the next one after it");
         }
