@@ -26,24 +26,33 @@ class Server {
       databaseURL: "https://eval-dirt.firebaseio.com/"
     });
     this.db = firebase.database();
-    this.state = {
+    this._state = {
       leagues: {},
       seasons: {},
       rallies: {},
       races: {},
       drivers: {},
+      nicks: {},
       activeRallyList: []
     };
+
+    // setInterval(() => {
+    //   let asd = "" + this._state;
+    // }, 1000);
 
     this._setupRefList();
     this._fetchState();
 
     this.dirtClient = new DirtClient();
-    this.resultsManager = new ResultsManager(this.state);
+    this.resultsManager = new ResultsManager(this._state);
 
     // -KRyJ61EOUJXExtq5MJu
     // setTimeout(() => {
-    //   this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
+    //   // let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
+    //   // this.refList.rallyResults.child("-KRyJ61EOUJXExtq5MJu").set(scores);
+    //   jsonFile.readFile("cache/151081.json", (err, data) => {
+    //     this._analyzeAPI(data, "-KS0-HNFGTqDRxwS4BTx");
+    //   });
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -79,7 +88,7 @@ class Server {
    */
   updateTimes() {
     setInterval(() => {
-      this.state.activeRallyList.forEach(rallyKey => {
+      this._state.activeRallyList.forEach(rallyKey => {
         this._updateRallyTimes(rallyKey);
       });
     }, 60 * 1000);
@@ -91,7 +100,7 @@ class Server {
    * @private
    */
   _updateRallyTimes(rallyKey) {
-    let rally = this.state.rallies[rallyKey];
+    let rally = this._state.rallies[rallyKey];
     rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
       this.dirtClient.fetchData(eventID).then(data => {
         this._analyzeAPI(data, rallyKey);
@@ -117,6 +126,7 @@ class Server {
       seasons: this.db.ref("seasons"), // 2016 I, 2016 II, contains info about rallies in a league, classes
       rallies: this.db.ref("rallies"), // Portugal WRC 2016 II, Finland WRC 2016 II, event IDs, contains also
       // punishments
+      rallyResults: this.db.ref("rallyResults"),
       races: this.db.ref("races"), // Individual race times
       drivers: this.db.ref("drivers"), // Driver real name, userNames
       rallyTeams: this.db.ref("rallyTeams") // Team name, team drivers
@@ -140,7 +150,13 @@ class Server {
    */
   _fetchLeagues() {
     this.refList.leagues.on("child_added", snap => {
-      this.state.leagues[snap.key] = snap.val();
+      this._state.leagues[snap.key] = snap.val();
+    });
+    this.refList.leagues.on("child_changed", snap => {
+      this._state.leagues[snap.key] = snap.val();
+    });
+    this.refList.leagues.on("child_removed", snap => {
+      delete this._state.leagues[snap.key];
     });
   }
 
@@ -150,20 +166,42 @@ class Server {
    */
   _fetchSeasons() {
     this.refList.seasons.on("child_added", snap => {
-      this.state.seasons[snap.key] = snap.val();
+      this._state.seasons[snap.key] = snap.val();
+    });
+    this.refList.seasons.on("child_changed", snap => {
+      this._state.seasons[snap.key] = snap.val();
+    });
+    this.refList.seasons.on("child_removed", snap => {
+      delete this._state.seasons[snap.key];
     });
   }
 
   _fetchDrivers() {
     let addedChanged = snap => {
       console.log(`Driver ${snap.key} added/changed`);
-      this.state.drivers[snap.key] = snap.val();
+      this._state.drivers[snap.key] = snap.val();
+      this._createNickList();
     };
     this.refList.drivers.on("child_added", addedChanged);
     this.refList.drivers.on("child_removed", snap => {
       console.log(`Driver ${snap.key} removed`);
-      delete this.state.drivers[snap.key];
+      delete this._state.drivers[snap.key];
+      this._createNickList();
     });
+  }
+
+  _createNickList() {
+    this._state.nicks = {};
+    for (let name in this._state.drivers) {
+      if (this._state.drivers.hasOwnProperty(name)) {
+        let driver = this._state.drivers[name];
+        for (let i in driver.nicks) {
+          if (driver.nicks.hasOwnProperty(i)) {
+            this._state.nicks[driver.nicks[i]] = name;
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -175,21 +213,21 @@ class Server {
       let value = snap.val();
       value.teams = {};
       console.log(`Rally ${value.name} added`);
-      this.state.rallies[snap.key] = value;
+      this._state.rallies[snap.key] = value;
 
       if (value.finished === false) {
-        this.state.activeRallyList.push(snap.key);
+        this._state.activeRallyList.push(snap.key);
         console.log(`Added ${value.name} to activeRallyList`);
         this._fetchRaces(snap.key);
       }
       this.refList.rallyTeams.on("child_added", teamSnap => {
-        this.state.rallies[teamSnap.key].teams = teamSnap.val();
+        this._state.rallies[teamSnap.key].teams = teamSnap.val();
       });
       this.refList.rallyTeams.on("child_changed", teamSnap => {
-        this.state.rallies[teamSnap.key].teams = teamSnap.val();
+        this._state.rallies[teamSnap.key].teams = teamSnap.val();
       });
       this.refList.rallyTeams.on("child_removed", teamSnap => {
-        this.state.rallies[teamSnap.key].teams = {};
+        this._state.rallies[teamSnap.key].teams = {};
       });
     });
     this.refList.rallies.on("child_changed", snap => {
@@ -197,17 +235,17 @@ class Server {
       console.log(`Rally ${value.name} changed`);
       for (let key in value) {
         if (value.hasOwnProperty(key)) {
-          this.state.rallies[snap.key][key] = value[key];
+          this._state.rallies[snap.key][key] = value[key];
         }
       }
-      let index = this.state.activeRallyList.indexOf(snap.key);
+      let index = this._state.activeRallyList.indexOf(snap.key);
       if (value.finished === true) {
         if (index >= 0) {
-          this.state.activeRallyList.splice(index, 1);
+          this._state.activeRallyList.splice(index, 1);
           console.log(`Removed "${value.name}" from activeRallyList`);
         }
       } else if (index < 0) {
-        this.state.activeRallyList.push(snap.key);
+        this._state.activeRallyList.push(snap.key);
         console.log(`Added "${value.name}" to activeRallyList`);
         this._fetchRaces(snap.key);
       }
@@ -220,9 +258,14 @@ class Server {
    * @private
    */
   _fetchRaces(rallyKey) {
-    this.state.races[rallyKey] = {};
+    this._state.races[rallyKey] = {};
     this.refList.races.child(rallyKey).on("child_added", snap => {
-      this.state.races[rallyKey][snap.key] = snap.val();
+      this._state.races[rallyKey][snap.key] = snap.val();
+    });
+    this.refList.races.child(rallyKey).on("child_changed", snap => {
+      let race = snap.val();
+      this._state.races[rallyKey][snap.key] = race;
+      console.log(`Race ${this._state.rallies[rallyKey].name} stage ${race.stage} for driver ${race.userName} changed`);
     });
   }
 
@@ -239,15 +282,17 @@ class Server {
    */
   _addRace(rallyKey, userName, stage, time, car, assists) {
     // check if such race result already exists
-    for (let key in this.state.races[rallyKey]) {
-      if (this.state.races[rallyKey].hasOwnProperty(key)) {
-        let race = this.state.races[rallyKey][key];
+    for (let key in this._state.races[rallyKey]) {
+      if (this._state.races[rallyKey].hasOwnProperty(key)) {
+        let race = this._state.races[rallyKey][key];
         if (userName === race.userName &&
             stage === race.stage &&
             time === race.time &&
-            car === race.car &&
-            assists === race.assists
+            car === race.car
         ) {
+          if (assists !== race.assists) {
+            this.refList.races.child(rallyKey).child(key).child("assists").set(assists);
+          }
           return false;
         }
       }
@@ -316,7 +361,7 @@ class Server {
             times: [],
             originalTimes: []
           };
-          if (data.assisted.hasOwnProperty(entry.Name)) {
+          if (data.assisted.indexOf(entry.Name) >= 0) {
             timeList[entry.Name].assists = true;
           }
         }
@@ -349,6 +394,8 @@ class Server {
     }
     if (amountAdded > 0) {
       console.log(`Added ${amountAdded} new times to the database: ${namesAdded.join(", ")}`);
+      let scores = this.resultsManager.calculateRallyResults(rallyKey);
+      this.refList.rallyResults.child(rallyKey).set(scores);
     }
   }
 
