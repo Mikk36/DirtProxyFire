@@ -36,9 +36,9 @@ class Server {
       activeRallyList: []
     };
 
-    setInterval(() => {
-      let asd = "" + this._state;
-    }, 1000);
+    // setInterval(() => {
+    //   let asd = "" + this._state;
+    // }, 1000);
 
     this._setupRefList();
     this._fetchState();
