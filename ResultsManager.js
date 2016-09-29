@@ -51,7 +51,7 @@ class ResultsManager {
     let classFinishers = {};
     for (let i in season.classes) {
       if (season.classes.hasOwnProperty(i)) {
-        classFinishers[i] = [];
+        classFinishers[i] = {drivers: [], teams: []};
       }
     }
     finisherList.forEach(result => {
@@ -76,18 +76,29 @@ class ResultsManager {
         return;
       }
 
-      classFinishers[raceClass].push({
+      let team = ResultsManager._getDriverTeam(driver, raceClass, rally);
+      if (team === null) {
+        // Driver has not registered a team
+        return;
+      }
+      if (team.car !== result.car) {
+        // Driver is using a car not assigned to the team
+        return;
+      }
+
+      classFinishers[raceClass].drivers.push({
         name: driver,
+        team: team,
         time: totalTimes[driver],
         powerTime: result.time,
         score: 0
       });
     });
 
-    // Let's calculate points
+    // Let's give out points
     for (let i in classFinishers) {
       if (classFinishers.hasOwnProperty(i)) {
-        let raceClass = classFinishers[i];
+        let raceClass = classFinishers[i].drivers;
         // Give points for finish time
         raceClass.sort(ResultsManager._totalTimeSorter);
         points.forEach((point, j) => {
@@ -104,12 +115,42 @@ class ResultsManager {
         });
         // Just sort the drivers by scores
         raceClass.sort(ResultsManager._scoreSorter);
+
+        raceClass.forEach(driver => {
+          let driverTeam = classFinishers[i].teams.find(team => {
+            return team.name === driver.team.name;
+          });
+          if (typeof driverTeam === "undefined") {
+            driverTeam = ResultsManager._getDriverTeam(driver.name, i, rally);
+            classFinishers[i].teams.push({
+              name: driverTeam.name,
+              score: driver.score
+            });
+          } else {
+            driverTeam.score += driver.score;
+          }
+        });
+        classFinishers[i].teams.sort(ResultsManager._teamScoreSorter);
       }
     }
 
     this._removeActive(id);
 
     return classFinishers;
+  }
+
+  static _getDriverTeam(name, raceClass, rally) {
+    let teams = rally.teams[raceClass];
+    for (let team in teams) {
+      if (teams.hasOwnProperty(team)) {
+        if (teams[team].drivers.indexOf(name) >= 0) {
+          let teamCopy = JSON.parse(JSON.stringify(teams[team]));
+          teamCopy.name = team;
+          return teamCopy;
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -162,6 +203,23 @@ class ResultsManager {
     }
     if (result1.score === result2.score) {
       return ResultsManager._totalTimeSorter(result1, result2);
+    }
+    return 0;
+  }
+
+  /**
+   * Compare results by total score and name (if equal scores)
+   * @param {Object} result1 Result 1
+   * @param {Object} result2 Result 2
+   * @returns {number} Comparison result
+   * @private
+   */
+  static _teamScoreSorter(result1, result2) {
+    if (result1.score > result2.score) {
+      return -1;
+    }
+    if (result1.score < result2.score) {
+      return 1;
     }
     return 0;
   }

@@ -36,9 +36,9 @@ class Server {
       activeRallyList: []
     };
 
-    // setInterval(() => {
-    //   let asd = "" + this._state;
-    // }, 1000);
+    setInterval(() => {
+      let asd = "" + this._state;
+    }, 1000);
 
     this._setupRefList();
     this._fetchState();
@@ -46,13 +46,17 @@ class Server {
     this.dirtClient = new DirtClient();
     this.resultsManager = new ResultsManager(this._state);
 
-    // -KRyJ61EOUJXExtq5MJu
+    // -KRyJ61EOUJXExtq5MJu <-- wrc 1
+    // -KS0-HNFGTqDRxwS4BTx <-- historic 1
     // setTimeout(() => {
-    //   // let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
+    //   let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
     //   // this.refList.rallyResults.child("-KRyJ61EOUJXExtq5MJu").set(scores);
-    //   jsonFile.readFile("cache/151081.json", (err, data) => {
-    //     this._analyzeAPI(data, "-KS0-HNFGTqDRxwS4BTx");
-    //   });
+    //   // jsonFile.readFile("cache/149001.json", (err, data) => {
+    //   //   this._analyzeAPI(data, "-KRyJ61EOUJXExtq5MJu");
+    //   // });
+    //   // jsonFile.readFile("cache/151081.json", (err, data) => {
+    //   //   this._analyzeAPI(data, "-KS0-HNFGTqDRxwS4BTx");
+    //   // });
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -220,6 +224,8 @@ class Server {
         console.log(`Added ${value.name} to activeRallyList`);
         this._fetchRaces(snap.key);
       }
+      // // TODO: Temporary!!!
+      // this._fetchRaces(snap.key);
       this.refList.rallyTeams.on("child_added", teamSnap => {
         this._state.rallies[teamSnap.key].teams = teamSnap.val();
       });
