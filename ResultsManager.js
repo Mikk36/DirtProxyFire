@@ -75,6 +75,10 @@ class ResultsManager {
         // Driver is disqualified
         return;
       }
+      if (ResultsManager._checkRestarts(driver, rally)) {
+        // Driver has restarted
+        return;
+      }
 
       let team = ResultsManager._getDriverTeam(driver, raceClass, rally);
       if (team === null) {
@@ -246,7 +250,7 @@ class ResultsManager {
   /**
    * Check if a driver is disqualified from a rally
    * @param {string} driver Driver name
-   * @param {Object} rally Rally to check for
+   * @param {Object} rally Rally to check against
    * @returns {boolean} True, if driver is disqualified
    * @private
    */
@@ -260,6 +264,17 @@ class ResultsManager {
       }
     }
     return false;
+  }
+
+  /**
+   * Check if a driver has restarted
+   * @param {string} driver Driver name
+   * @param {Object} rally Rally to check against
+   * @returns {boolean} True, if driver has restarted
+   * @private
+   */
+  static _checkRestarts(driver, rally) {
+    return rally.restarters.indexOf(driver) >= 0;
   }
 
   /**

@@ -33,7 +33,8 @@ class Server {
       races: {},
       drivers: {},
       nicks: {},
-      activeRallyList: []
+      activeRallyList: [],
+      apiCache: {}
     };
 
     // setInterval(() => {
@@ -49,7 +50,7 @@ class Server {
     // -KRyJ61EOUJXExtq5MJu <-- wrc 1
     // -KS0-HNFGTqDRxwS4BTx <-- historic 1
     // setTimeout(() => {
-    //   let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
+    //   // let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
     //   // this.refList.rallyResults.child("-KRyJ61EOUJXExtq5MJu").set(scores);
     //   // jsonFile.readFile("cache/149001.json", (err, data) => {
     //   //   this._analyzeAPI(data, "-KRyJ61EOUJXExtq5MJu");
@@ -57,6 +58,12 @@ class Server {
     //   // jsonFile.readFile("cache/151081.json", (err, data) => {
     //   //   this._analyzeAPI(data, "-KS0-HNFGTqDRxwS4BTx");
     //   // });
+    //   jsonFile.readFile("cache/149001.json", (oldErr, oldData) => {
+    //     jsonFile.readFile("cache/149001 - Copy.json", (newErr, newData) => {
+    //       let list = this._checkRestartedDrivers(oldData, newData);
+    //       this._mergeRestarterLists("-KRyJ61EOUJXExtq5MJu", list);
+    //     });
+    //   });
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -133,7 +140,8 @@ class Server {
       rallyResults: this.db.ref("rallyResults"),
       races: this.db.ref("races"), // Individual race times
       drivers: this.db.ref("drivers"), // Driver real name, userNames
-      rallyTeams: this.db.ref("rallyTeams") // Team name, team drivers
+      rallyTeams: this.db.ref("rallyTeams"), // Team name, team drivers
+      apiCache: this.db.ref("apiCache")
     };
   }
 
@@ -223,8 +231,9 @@ class Server {
         this._state.activeRallyList.push(snap.key);
         console.log(`Added ${value.name} to activeRallyList`);
         this._fetchRaces(snap.key);
+        this._fetchApiCache(snap.key);
       }
-      // // TODO: Temporary!!!
+      // TODO: Temporary!!!
       // this._fetchRaces(snap.key);
       this.refList.rallyTeams.on("child_added", teamSnap => {
         this._state.rallies[teamSnap.key].teams = teamSnap.val();
@@ -254,8 +263,22 @@ class Server {
         this._state.activeRallyList.push(snap.key);
         console.log(`Added "${value.name}" to activeRallyList`);
         this._fetchRaces(snap.key);
+        this._fetchApiCache(snap.key);
       }
     });
+  }
+
+  _fetchApiCache(rallyKey) {
+    this._state.rallies[rallyKey].eventIDList.forEach(id => {
+      this.refList.apiCache.child(id).once("value", snap => {
+        this._state.apiCache[id] = snap.val();
+      });
+    });
+  }
+
+  _storeApiCache(data) {
+    this._state.apiCache[data.id] = data;
+    this.refList.apiCache.child(data.id).set(data);
   }
 
   /**
@@ -383,6 +406,11 @@ class Server {
       });
     });
 
+    let newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
+    if (newRestarterList.length > 0) {
+      this._mergeRestarterLists(rallyKey, newRestarterList);
+    }
+
     let amountAdded = 0;
     let namesAdded = [];
     for (let name in timeList) {
@@ -403,6 +431,85 @@ class Server {
       let scores = this.resultsManager.calculateRallyResults(rallyKey);
       this.refList.rallyResults.child(rallyKey).set(scores);
     }
+
+    this._storeApiCache(data);
+  }
+
+  /**
+   * Merge new restarters list with the existing one for a rally
+   * @param {string} rallyKey Rally ID
+   * @param {Array.<string>} list Restarters list
+   * @private
+   */
+  _mergeRestarterLists(rallyKey, list) {
+    let rally = this._state.rallies[rallyKey];
+    if (!rally.hasOwnProperty("restarters")) {
+      rally.restarters = [];
+    }
+    list.forEach(name => {
+      if (rally.restarters.indexOf(name) < 0) {
+        rally.restarters.push(name);
+      }
+    });
+    this.refList.rallies.child(rallyKey).child("restarters").set(rally.restarters);
+  }
+
+  /**
+   * Check for restarts
+   * @param {EventData} oldData Previous data from cache
+   * @param {EventData} newData New data from API
+   * @returns {Array.<string>} List of restarters
+   * @private
+   */
+  _checkRestartedDrivers(oldData, newData) {
+    let oldRacesListByDrivers = {};
+    let newRacesListByDrivers = {};
+    let restarters = [];
+
+    oldData.stages.forEach(stage => {
+      stage.singlePage.Entries.forEach(entry => {
+        if (!oldRacesListByDrivers.hasOwnProperty(entry.Name)) {
+          oldRacesListByDrivers[entry.Name] = [];
+        }
+        oldRacesListByDrivers[entry.Name].push({
+          stage: stage.stage,
+          time: entry.Time
+        });
+      });
+    });
+    newData.stages.forEach(stage => {
+      stage.singlePage.Entries.forEach(entry => {
+        if (!newRacesListByDrivers.hasOwnProperty(entry.Name)) {
+          newRacesListByDrivers[entry.Name] = [];
+        }
+        newRacesListByDrivers[entry.Name].push({
+          stage: stage.stage,
+          time: entry.Time
+        });
+      });
+    });
+
+    for (let name in oldRacesListByDrivers) {
+      if (oldRacesListByDrivers.hasOwnProperty(name)) {
+        if (!newRacesListByDrivers.hasOwnProperty(name)) {
+          restarters.push(name);
+          continue;
+        }
+        let driverOld = oldRacesListByDrivers[name];
+        let driverNew = newRacesListByDrivers[name];
+        if (driverNew.length < driverOld.length) {
+          restarters.push(name);
+          continue;
+        }
+        driverOld.forEach((entry, stageNumber) => {
+          if (entry.time !== driverNew[stageNumber].time) {
+            restarters.push(name);
+          }
+        });
+      }
+    }
+
+    return restarters;
   }
 
   /**
