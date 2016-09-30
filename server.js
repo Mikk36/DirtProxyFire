@@ -271,7 +271,10 @@ class Server {
   _fetchApiCache(rallyKey) {
     this._state.rallies[rallyKey].eventIDList.forEach(id => {
       this.refList.apiCache.child(id).once("value", snap => {
-        this._state.apiCache[id] = snap.val();
+        let val = snap.val();
+        if (val !== null) {
+          this._state.apiCache[id] = snap.val();
+        }
       });
     });
   }
