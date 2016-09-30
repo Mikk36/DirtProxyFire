@@ -336,7 +336,7 @@ class Server {
       time: time,
       car: car,
       assists: assists,
-      timestamp: Date.now()
+      timestamp: (new Date()).toJSON()
     };
     this.refList.races.child(rallyKey).push(result);
     return true;
