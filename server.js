@@ -64,6 +64,9 @@ class Server {
     //       this._mergeRestarterLists("-KRyJ61EOUJXExtq5MJu", list);
     //     });
     //   });
+    // this._analyzeAPI(this._state.apiCache["149002"], "-KRzKPDdmSxQq_EdUbzU");
+    // let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
+    // this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -393,8 +396,10 @@ class Server {
             times: [],
             originalTimes: []
           };
-          if (data.assisted.indexOf(entry.Name) >= 0) {
-            timeList[entry.Name].assists = true;
+          if (data.hasOwnProperty("assisted")) {
+            if (data.assisted.indexOf(entry.Name) >= 0) {
+              timeList[entry.Name].assists = true;
+            }
           }
         }
         let times = timeList[entry.Name].times;

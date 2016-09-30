@@ -274,7 +274,10 @@ class ResultsManager {
    * @private
    */
   static _checkRestarts(driver, rally) {
-    return rally.restarters.indexOf(driver) >= 0;
+    if (rally.hasOwnProperty("restarters")) {
+      return rally.restarters.indexOf(driver) >= 0;
+    }
+    return false;
   }
 
   /**
