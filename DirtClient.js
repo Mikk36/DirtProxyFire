@@ -79,6 +79,7 @@ class DirtClient {
             eventData.assisted = assistResponse.assistList;
             eventData.requestCount += assistResponse.requestCount;
             eventData.timeTotal += assistResponse.timeTotal;
+            eventData.timestamp = (new Date()).toJSON();
             resolve(eventData);
             this._removeActive(id);
           }).catch(err => {
