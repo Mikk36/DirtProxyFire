@@ -406,9 +406,11 @@ class Server {
       });
     });
 
-    let newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
-    if (newRestarterList.length > 0) {
-      this._mergeRestarterLists(rallyKey, newRestarterList);
+    if (this._state.apiCache.hasOwnProperty(data.id)) {
+      let newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
+      if (newRestarterList.length > 0) {
+        this._mergeRestarterLists(rallyKey, newRestarterList);
+      }
     }
 
     let amountAdded = 0;
