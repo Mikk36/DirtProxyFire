@@ -88,7 +88,7 @@ class Server {
    * @private
    */
   static _createCacheFolder() {
-    let dir = './cache';
+    const dir = './cache';
 
     try {
       fs.accessSync(dir, fs.F_OK);
@@ -114,7 +114,7 @@ class Server {
    * @private
    */
   _updateRallyTimes(rallyKey) {
-    let rally = this._state.rallies[rallyKey];
+    const rally = this._state.rallies[rallyKey];
     rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
       this.dirtClient.fetchData(eventID).then(data => {
         this._analyzeAPI(data, rallyKey);
@@ -192,7 +192,7 @@ class Server {
   }
 
   _fetchDrivers() {
-    let addedChanged = snap => {
+    const addedChanged = snap => {
       console.log(`Driver ${snap.key} added/changed`);
       this._state.drivers[snap.key] = snap.val();
       this._createNickList();
@@ -207,10 +207,10 @@ class Server {
 
   _createNickList() {
     this._state.nicks = {};
-    for (let name in this._state.drivers) {
+    for (const name in this._state.drivers) {
       if (this._state.drivers.hasOwnProperty(name)) {
-        let driver = this._state.drivers[name];
-        for (let i in driver.nicks) {
+        const driver = this._state.drivers[name];
+        for (const i in driver.nicks) {
           if (driver.nicks.hasOwnProperty(i)) {
             this._state.nicks[driver.nicks[i]] = name;
           }
@@ -225,7 +225,7 @@ class Server {
    */
   _fetchRallies() {
     this.refList.rallies.on("child_added", snap => {
-      let value = snap.val();
+      const value = snap.val();
       value.teams = {};
       console.log(`Rally ${value.name} added`);
       this._state.rallies[snap.key] = value;
@@ -249,14 +249,14 @@ class Server {
       });
     });
     this.refList.rallies.on("child_changed", snap => {
-      let value = snap.val();
+      const value = snap.val();
       console.log(`Rally ${value.name} changed`);
-      for (let key in value) {
+      for (const key in value) {
         if (value.hasOwnProperty(key)) {
           this._state.rallies[snap.key][key] = value[key];
         }
       }
-      let index = this._state.activeRallyList.indexOf(snap.key);
+      const index = this._state.activeRallyList.indexOf(snap.key);
       if (value.finished === true) {
         if (index >= 0) {
           this._state.activeRallyList.splice(index, 1);
@@ -274,9 +274,9 @@ class Server {
   _fetchApiCache(rallyKey) {
     this._state.rallies[rallyKey].eventIDList.forEach(id => {
       this.refList.apiCache.child(id).once("value", snap => {
-        let val = snap.val();
+        const val = snap.val();
         if (val !== null) {
-          this._state.apiCache[id] = snap.val();
+          this._state.apiCache[id] = val;
         }
       });
     });
@@ -298,7 +298,7 @@ class Server {
       this._state.races[rallyKey][snap.key] = snap.val();
     });
     this.refList.races.child(rallyKey).on("child_changed", snap => {
-      let race = snap.val();
+      const race = snap.val();
       this._state.races[rallyKey][snap.key] = race;
       console.log(`Race ${this._state.rallies[rallyKey].name} stage ${race.stage} for driver ${race.userName} changed`);
     });
@@ -317,9 +317,9 @@ class Server {
    */
   _addRace(rallyKey, userName, stage, time, car, assists) {
     // check if such race result already exists
-    for (let key in this._state.races[rallyKey]) {
+    for (const key in this._state.races[rallyKey]) {
       if (this._state.races[rallyKey].hasOwnProperty(key)) {
-        let race = this._state.races[rallyKey][key];
+        const race = this._state.races[rallyKey][key];
         if (userName === race.userName &&
             stage === race.stage &&
             time === race.time &&
@@ -333,7 +333,7 @@ class Server {
       }
     }
 
-    let result = {
+    const result = {
       userName: userName,
       stage: stage,
       time: time,
@@ -381,7 +381,7 @@ class Server {
    * @private
    */
   _analyzeAPI(data, rallyKey) {
-    let timeList = {};
+    const timeList = {};
     data.stages.forEach((stage, i) => {
       if (i + 1 < data.stages.length) {
         if (stage.singlePage.Entries.length < data.stages[i + 1].singlePage.Entries.length) {
@@ -402,9 +402,9 @@ class Server {
             }
           }
         }
-        let times = timeList[entry.Name].times;
-        let originalTimes = timeList[entry.Name].originalTimes;
-        let time = Server.parseTime(entry.Time);
+        const times = timeList[entry.Name].times;
+        const originalTimes = timeList[entry.Name].originalTimes;
+        const time = Server.parseTime(entry.Time);
         originalTimes.push(time);
         if (stage.stage === 1) {
           times.push(time);
@@ -415,17 +415,17 @@ class Server {
     });
 
     if (this._state.apiCache.hasOwnProperty(data.id)) {
-      let newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
+      const newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
       if (newRestarterList.length > 0) {
         this._mergeRestarterLists(rallyKey, newRestarterList);
       }
     }
 
     let amountAdded = 0;
-    let namesAdded = [];
-    for (let name in timeList) {
+    const namesAdded = [];
+    for (const name in timeList) {
       if (timeList.hasOwnProperty(name)) {
-        let driver = timeList[name];
+        const driver = timeList[name];
         driver.times.forEach((time, stage) => { // eslint-disable-line no-loop-func
           if (this._addRace(rallyKey, name, stage + 1, time, driver.car, driver.assists)) {
             amountAdded++;
@@ -438,7 +438,7 @@ class Server {
     }
     if (amountAdded > 0) {
       console.log(`Added ${amountAdded} new times to the database: ${namesAdded.join(", ")}`);
-      let scores = this.resultsManager.calculateRallyResults(rallyKey);
+      const scores = this.resultsManager.calculateRallyResults(rallyKey);
       this.refList.rallyResults.child(rallyKey).set(scores);
     }
 
@@ -452,7 +452,7 @@ class Server {
    * @private
    */
   _mergeRestarterLists(rallyKey, list) {
-    let rally = this._state.rallies[rallyKey];
+    const rally = this._state.rallies[rallyKey];
     if (!rally.hasOwnProperty("restarters")) {
       rally.restarters = [];
     }
@@ -472,9 +472,9 @@ class Server {
    * @private
    */
   _checkRestartedDrivers(oldData, newData) {
-    let oldRacesListByDrivers = {};
-    let newRacesListByDrivers = {};
-    let restarters = [];
+    const oldRacesListByDrivers = {};
+    const newRacesListByDrivers = {};
+    const restarters = [];
 
     oldData.stages.forEach(stage => {
       stage.singlePage.Entries.forEach(entry => {
@@ -499,14 +499,14 @@ class Server {
       });
     });
 
-    for (let name in oldRacesListByDrivers) {
+    for (const name in oldRacesListByDrivers) {
       if (oldRacesListByDrivers.hasOwnProperty(name)) {
         if (!newRacesListByDrivers.hasOwnProperty(name)) {
           restarters.push(name);
           continue;
         }
-        let driverOld = oldRacesListByDrivers[name];
-        let driverNew = newRacesListByDrivers[name];
+        const driverOld = oldRacesListByDrivers[name];
+        const driverNew = newRacesListByDrivers[name];
         if (driverNew.length < driverOld.length) {
           restarters.push(name);
           continue;
@@ -528,7 +528,7 @@ class Server {
    * @returns {number} Time as seconds
    */
   static parseTime(time) {
-    let split = time.split(":").reverse();
+    const split = time.split(":").reverse();
     let timeSeconds = parseFloat(split[0]);
     if (split.length > 1) {
       timeSeconds += parseInt(split[1], 10) * 60;

@@ -19,7 +19,7 @@ class DirtClient {
     /**
      * @type {EventData}
      */
-    let eventData = {
+    const eventData = {
       id: id,
       stages: [],
       requestCount: 1,
@@ -28,7 +28,7 @@ class DirtClient {
       overallResponse: null,
       assisted: []
     };
-    let start = Date.now();
+    const start = Date.now();
 
     return new Promise((resolve, reject) => {
       // fetch overall page
@@ -44,8 +44,8 @@ class DirtClient {
 
       DirtClient._fetchAPI([id]).then(data => {
         eventData.overallResponse = data;
-        let stageCount = data.response.TotalStages;
-        let stagePromises = [];
+        const stageCount = data.response.TotalStages;
+        const stagePromises = [];
         for (let stageNumber = 1; stageNumber <= stageCount; stageNumber++) {
           stagePromises.push(new Promise((stageResolve, stageReject) => {
             DirtClient._fetchAPI([id, stageNumber]).then(stageData => {
@@ -70,7 +70,7 @@ class DirtClient {
                 }) does not equal intended length (${eventData.stages.length})`));
           }
         }).then(() => {
-          let assistPromise = new Promise((assistsResolve, assistsReject) => {
+          const assistPromise = new Promise((assistsResolve, assistsReject) => {
             DirtClient._fetchAPI([id, 0, 1, true]).then(assistsData => {
               this._processAssists(assistsResolve, assistsReject, assistsData);
             });
@@ -116,7 +116,7 @@ class DirtClient {
    * @private
    */
   _processAssists(resolve, reject, data) {
-    let assistResponse = {
+    const assistResponse = {
       assistList: [],
       timeTotal: data.responseTime,
       requestCount: 1
@@ -125,7 +125,7 @@ class DirtClient {
       assistResponse.assistList.push(entry.Name);
     });
 
-    let pagePromises = [];
+    const pagePromises = [];
     for (let pageNumber = 2; pageNumber <= data.response.Pages; pageNumber++) {
       pagePromises.push(new Promise((pageResolve, pageReject) => {
         DirtClient._fetchAPI([data.id, data.stage, pageNumber, true]).then(pageData => {
@@ -163,7 +163,7 @@ class DirtClient {
     /**
      * @type {StageData}
      */
-    let stageData = {
+    const stageData = {
       stage: data.stage,
       requestCount: 1,
       pageCount: data.response.Pages,
@@ -171,7 +171,7 @@ class DirtClient {
       pages: [data]
     };
 
-    let pagePromises = [];
+    const pagePromises = [];
     for (let pageNumber = 2; pageNumber <= stageData.pageCount; pageNumber++) {
       pagePromises.push(new Promise((pageResolve, pageReject) => {
         DirtClient._fetchAPI([data.id, data.stage, pageNumber]).then(pageData => {
@@ -222,7 +222,7 @@ class DirtClient {
   static _fetchAPI([id, stage = 0, page = 1, assists = false]) {
     // console.log(`Values: ID: ${id}, stage: ${stage}, page: ${page}`);
     return new Promise((resolve, reject) => {
-      let startTime = Date.now();
+      const startTime = Date.now();
       http.get(`https://www.dirtgame.com/uk/api/event?assists=${assists ? "enabled" : "any"}&eventId=${id
           }&leaderboard=true&noCache=${Date.now()}&stageId=${stage}&page=${page}`, res => {
         let body = "";
@@ -231,7 +231,7 @@ class DirtClient {
         });
         res.on("end", () => {
           try {
-            let data = JSON.parse(body);
+            const data = JSON.parse(body);
             resolve({
               id: id,
               stage: stage,
