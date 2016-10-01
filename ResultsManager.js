@@ -246,6 +246,9 @@ class ResultsManager {
    * @private
    */
   static _checkDQ(driver, rally) {
+    if (!rally.hasOwnProperty("penalties")) {
+      return false;
+    }
     for (const i of Object.getOwnPropertyNames(rally.penalties)) {
       const penalty = rally.penalties[i];
       if (penalty.driver === driver && penalty.hasOwnProperty("dq") && penalty.dq === true) {
