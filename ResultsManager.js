@@ -81,7 +81,7 @@ class ResultsManager {
         // Driver has not registered a team
         return;
       }
-      if (team.car !== result.car) {
+      if (rally.teams[raceClass][team].car !== result.car) {
         // Driver is using a car not assigned to the team
         return;
       }
@@ -117,12 +117,12 @@ class ResultsManager {
 
       raceClass.forEach(driver => {
         let driverTeam = classFinishers[i].teams.find(team => {
-          return team.id === driver.team.id;
+          return team.id === driver.team;
         });
         if (typeof driverTeam === "undefined") {
           driverTeam = ResultsManager._getDriverTeam(driver.name, i, rally);
           classFinishers[i].teams.push({
-            id: driverTeam.id,
+            id: driverTeam,
             score: driver.score
           });
         } else {
@@ -141,9 +141,7 @@ class ResultsManager {
     const teams = rally.teams[raceClass];
     for (const team of Object.getOwnPropertyNames(teams)) {
       if (teams[team].drivers.indexOf(name) >= 0) {
-        const teamCopy = JSON.parse(JSON.stringify(teams[team]));
-        teamCopy.id = team;
-        return teamCopy;
+        return team;
       }
     }
     return null;
