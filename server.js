@@ -207,14 +207,10 @@ class Server {
 
   _createNickList() {
     this._state.nicks = {};
-    for (const name in this._state.drivers) {
-      if (this._state.drivers.hasOwnProperty(name)) {
-        const driver = this._state.drivers[name];
-        for (const i in driver.nicks) {
-          if (driver.nicks.hasOwnProperty(i)) {
-            this._state.nicks[driver.nicks[i]] = name;
-          }
-        }
+    for (const name of Object.getOwnPropertyNames(this._state.drivers)) {
+      const driver = this._state.drivers[name];
+      for (const i of Object.getOwnPropertyNames(driver.nicks)) {
+        this._state.nicks[driver.nicks[i]] = name;
       }
     }
   }
@@ -251,10 +247,8 @@ class Server {
     this.refList.rallies.on("child_changed", snap => {
       const value = snap.val();
       console.log(`Rally ${value.name} changed`);
-      for (const key in value) {
-        if (value.hasOwnProperty(key)) {
-          this._state.rallies[snap.key][key] = value[key];
-        }
+      for (const key of Object.getOwnPropertyNames(value)) {
+        this._state.rallies[snap.key][key] = value[key];
       }
       const index = this._state.activeRallyList.indexOf(snap.key);
       if (value.finished === true) {
@@ -317,19 +311,17 @@ class Server {
    */
   _addRace(rallyKey, userName, stage, time, car, assists) {
     // check if such race result already exists
-    for (const key in this._state.races[rallyKey]) {
-      if (this._state.races[rallyKey].hasOwnProperty(key)) {
-        const race = this._state.races[rallyKey][key];
-        if (userName === race.userName &&
-            stage === race.stage &&
-            time === race.time &&
-            car === race.car
-        ) {
-          if (assists !== race.assists) {
-            this.refList.races.child(rallyKey).child(key).child("assists").set(assists);
-          }
-          return false;
+    for (const key of Object.getOwnPropertyNames(this._state.races[rallyKey])) {
+      const race = this._state.races[rallyKey][key];
+      if (userName === race.userName &&
+          stage === race.stage &&
+          time === race.time &&
+          car === race.car
+      ) {
+        if (assists !== race.assists) {
+          this.refList.races.child(rallyKey).child(key).child("assists").set(assists);
         }
+        return false;
       }
     }
 
@@ -423,18 +415,16 @@ class Server {
 
     let amountAdded = 0;
     const namesAdded = [];
-    for (const name in timeList) {
-      if (timeList.hasOwnProperty(name)) {
-        const driver = timeList[name];
-        driver.times.forEach((time, stage) => { // eslint-disable-line no-loop-func
-          if (this._addRace(rallyKey, name, stage + 1, time, driver.car, driver.assists)) {
-            amountAdded++;
-            if (namesAdded.indexOf(name) < 0) {
-              namesAdded.push(name);
-            }
+    for (const name of Object.getOwnPropertyNames(timeList)) {
+      const driver = timeList[name];
+      driver.times.forEach((time, stage) => { // eslint-disable-line no-loop-func
+        if (this._addRace(rallyKey, name, stage + 1, time, driver.car, driver.assists)) {
+          amountAdded++;
+          if (namesAdded.indexOf(name) < 0) {
+            namesAdded.push(name);
           }
-        });
-      }
+        }
+      });
     }
     if (amountAdded > 0) {
       console.log(`Added ${amountAdded} new times to the database: ${namesAdded.join(", ")}`);

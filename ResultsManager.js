@@ -40,19 +40,15 @@ class ResultsManager {
     const points = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
     const pointsPower = [3, 2, 1];
     const finisherList = [];
-    for (const i in races) {
-      if (races.hasOwnProperty(i)) {
-        const result = races[i];
-        if (result.stage === stageCount && (result.time !== 900 && result.time !== 1800)) {
-          finisherList.push(result);
-        }
+    for (const i of Object.getOwnPropertyNames(races)) {
+      const result = races[i];
+      if (result.stage === stageCount && (result.time !== 900 && result.time !== 1800)) {
+        finisherList.push(result);
       }
     }
     const classFinishers = {};
-    for (const i in season.classes) {
-      if (season.classes.hasOwnProperty(i)) {
-        classFinishers[i] = {drivers: [], teams: []};
-      }
+    for (const i of Object.getOwnPropertyNames(season.classes)) {
+      classFinishers[i] = {drivers: [], teams: []};
     }
     finisherList.forEach(result => {
       if (!this._state.nicks.hasOwnProperty(result.userName)) {
@@ -100,42 +96,41 @@ class ResultsManager {
     });
 
     // Let's give out points
-    for (const i in classFinishers) {
-      if (classFinishers.hasOwnProperty(i)) {
-        const raceClass = classFinishers[i].drivers;
-        // Give points for finish time
-        raceClass.sort(ResultsManager._totalTimeSorter);
-        points.forEach((point, j) => {
-          if (j < raceClass.length) {
-            raceClass[j].score += point;
-          }
-        });
-        // Give points for powerStage time
-        raceClass.sort(ResultsManager._powerTimeSorter);
-        pointsPower.forEach((point, j) => {
-          if (j < raceClass.length) {
-            raceClass[j].score += point;
-          }
-        });
-        // Just sort the drivers by scores
-        raceClass.sort(ResultsManager._scoreSorter);
+    for (const i of Object.getOwnPropertyNames(classFinishers)) {
+      const raceClass = classFinishers[i].drivers;
+      // Give points for finish time
+      raceClass.sort(ResultsManager._totalTimeSorter);
+      points.forEach((point, j) => {
+        if (j < raceClass.length) {
+          raceClass[j].score += point;
+        }
+      });
+      // Give points for powerStage time
+      raceClass.sort(ResultsManager._powerTimeSorter);
+      pointsPower.forEach((point, j) => {
+        if (j < raceClass.length) {
+          raceClass[j].score += point;
+        }
+      });
+      // Just sort the drivers by scores
+      raceClass.sort(ResultsManager._scoreSorter);
 
-        raceClass.forEach(driver => {
-          let driverTeam = classFinishers[i].teams.find(team => {
-            return team.name === driver.team.name;
-          });
-          if (typeof driverTeam === "undefined") {
-            driverTeam = ResultsManager._getDriverTeam(driver.name, i, rally);
-            classFinishers[i].teams.push({
-              name: driverTeam.name,
-              score: driver.score
-            });
-          } else {
-            driverTeam.score += driver.score;
-          }
+      raceClass.forEach(driver => {
+        let driverTeam = classFinishers[i].teams.find(team => {
+          return team.name === driver.team.name;
         });
-        classFinishers[i].teams.sort(ResultsManager._teamScoreSorter);
-      }
+        if (typeof driverTeam === "undefined") {
+          driverTeam = ResultsManager._getDriverTeam(driver.name, i, rally);
+          classFinishers[i].teams.push({
+            name: driverTeam.name,
+            score: driver.score
+          });
+        } else {
+          driverTeam.score += driver.score;
+        }
+      });
+      classFinishers[i].teams.sort(ResultsManager._teamScoreSorter);
+
     }
 
     this._removeActive(id);
@@ -145,13 +140,11 @@ class ResultsManager {
 
   static _getDriverTeam(name, raceClass, rally) {
     const teams = rally.teams[raceClass];
-    for (const team in teams) {
-      if (teams.hasOwnProperty(team)) {
-        if (teams[team].drivers.indexOf(name) >= 0) {
-          const teamCopy = JSON.parse(JSON.stringify(teams[team]));
-          teamCopy.name = team;
-          return teamCopy;
-        }
+    for (const team of Object.getOwnPropertyNames(teams)) {
+      if (teams[team].drivers.indexOf(name) >= 0) {
+        const teamCopy = JSON.parse(JSON.stringify(teams[team]));
+        teamCopy.name = team;
+        return teamCopy;
       }
     }
     return null;
@@ -236,12 +229,10 @@ class ResultsManager {
    */
   _calculateTotalTimes(races) {
     const totals = {};
-    for (const i in races) {
-      if (races.hasOwnProperty(i)) {
-        const race = races[i];
-        if (this._state.nicks.hasOwnProperty(race.userName)) {
-          totals[this._state.nicks[race.userName]] = (totals[this._state.nicks[race.userName]] || 0) + race.time;
-        }
+    for (const i of Object.getOwnPropertyNames(races)) {
+      const race = races[i];
+      if (this._state.nicks.hasOwnProperty(race.userName)) {
+        totals[this._state.nicks[race.userName]] = (totals[this._state.nicks[race.userName]] || 0) + race.time;
       }
     }
     return totals;
@@ -255,12 +246,10 @@ class ResultsManager {
    * @private
    */
   static _checkDQ(driver, rally) {
-    for (const i in rally.penalties) {
-      if (rally.penalties.hasOwnProperty(i)) {
-        const penalty = rally.penalties[i];
-        if (penalty.driver === driver && penalty.hasOwnProperty("dq") && penalty.dq === true) {
-          return true;
-        }
+    for (const i of Object.getOwnPropertyNames(rally.penalties)) {
+      const penalty = rally.penalties[i];
+      if (penalty.driver === driver && penalty.hasOwnProperty("dq") && penalty.dq === true) {
+        return true;
       }
     }
     return false;
@@ -304,12 +293,10 @@ class ResultsManager {
    */
   static _getClass(car, season) {
     const classes = season.classes;
-    for (const seasonClass in classes) {
-      if (classes.hasOwnProperty(seasonClass)) {
-        const testClass = classes[seasonClass];
-        if (testClass.cars.indexOf(car) >= 0) {
-          return seasonClass;
-        }
+    for (const seasonClass of Object.getOwnPropertyNames(classes)) {
+      const testClass = classes[seasonClass];
+      if (testClass.cars.indexOf(car) >= 0) {
+        return seasonClass;
       }
     }
     return null;
