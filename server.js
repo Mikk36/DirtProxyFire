@@ -48,10 +48,9 @@ class Server {
     this.resultsManager = new ResultsManager(this._state);
 
     // -KRyJ61EOUJXExtq5MJu <-- wrc 1
+    // -KRzKPDdmSxQq_EdUbzU <-- wrc 2
     // -KS0-HNFGTqDRxwS4BTx <-- historic 1
     // setTimeout(() => {
-    //   // let scores = this.resultsManager.calculateRallyResults("-KRyJ61EOUJXExtq5MJu");
-    //   // this.refList.rallyResults.child("-KRyJ61EOUJXExtq5MJu").set(scores);
     //   // jsonFile.readFile("cache/149001.json", (err, data) => {
     //   //   this._analyzeAPI(data, "-KRyJ61EOUJXExtq5MJu");
     //   // });
@@ -65,8 +64,11 @@ class Server {
     //     });
     //   });
     // this._analyzeAPI(this._state.apiCache["149002"], "-KRzKPDdmSxQq_EdUbzU");
-    // let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
-    // this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
+    //   let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
+    //   this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
+    //   this.refList.rallyTeams.child("-KS0-HNFGTqDRxwS4BTx").once("value", snap => {
+    //     this.refList.rallyTeams.child("historic_2016_II_2_sweden").set(snap.val());
+    //   });
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -126,6 +128,8 @@ class Server {
               }
           );
         }
+      }).catch(err => {
+        console.log(err);
       });
     });
   }
@@ -467,6 +471,9 @@ class Server {
     const restarters = [];
 
     oldData.stages.forEach(stage => {
+      if (!stage.singlePage.hasOwnProperty("Entries")) {
+        return;
+      }
       stage.singlePage.Entries.forEach(entry => {
         if (!oldRacesListByDrivers.hasOwnProperty(entry.Name)) {
           oldRacesListByDrivers[entry.Name] = [];

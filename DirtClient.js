@@ -223,7 +223,7 @@ class DirtClient {
     // console.log(`Values: ID: ${id}, stage: ${stage}, page: ${page}`);
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      http.get(`https://www.dirtgame.com/uk/api/event?assists=${assists ? "enabled" : "any"}&eventId=${id
+      const req = http.get(`https://www.dirtgame.com/uk/api/event?assists=${assists ? "enabled" : "any"}&eventId=${id
           }&leaderboard=true&noCache=${Date.now()}&stageId=${stage}&page=${page}`, res => {
         let body = "";
         res.on("data", chunk => {
@@ -246,6 +246,10 @@ class DirtClient {
         res.on("error", err => {
           reject(err);
         });
+      });
+
+      req.on("error", err => {
+        reject(err);
       });
     });
   }
