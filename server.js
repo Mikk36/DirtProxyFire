@@ -460,7 +460,7 @@ class Server {
 
   /**
    * Check for restarted drivers
-   * @param {Object} data Data from the API
+   * @param {Object} data List of times by driver
    * @param {string} rallyKey Rally ID
    * @returns {Array.<string>} List of restarters
    * @private
