@@ -64,11 +64,13 @@ class Server {
     //     });
     //   });
     // this._analyzeAPI(this._state.apiCache["149002"], "-KRzKPDdmSxQq_EdUbzU");
-    //   let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
-    //   this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
     //   this.refList.rallyTeams.child("-KS0-HNFGTqDRxwS4BTx").once("value", snap => {
     //     this.refList.rallyTeams.child("historic_2016_II_2_sweden").set(snap.val());
     //   });
+    // Recalculate rally results for a rally
+    // setTimeout(() => {
+    //   let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
+    //   this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -236,8 +238,6 @@ class Server {
         this._fetchRaces(snap.key);
         this._fetchApiCache(snap.key);
       }
-      // TODO: Temporary!!!
-      // this._fetchRaces(snap.key);
       this.refList.rallyTeams.on("child_added", teamSnap => {
         this._state.rallies[teamSnap.key].teams = teamSnap.val();
       });
@@ -410,10 +410,10 @@ class Server {
       });
     });
 
-    if (this._state.apiCache.hasOwnProperty(data.id)) {
-      const newRestarterList = this._checkRestartedDrivers(this._state.apiCache[data.id], data);
-      if (newRestarterList.length > 0) {
-        this._mergeRestarterLists(rallyKey, newRestarterList);
+    if (this._state.races.hasOwnProperty(rallyKey)) {
+      const restarterList = this._checkRestartedDrivers(timeList, rallyKey);
+      if (restarterList.length > 0) {
+        this._mergeRestarterLists(rallyKey, restarterList);
       }
     }
 
@@ -459,64 +459,59 @@ class Server {
   }
 
   /**
-   * Check for restarts
-   * @param {EventData} oldData Previous data from cache
-   * @param {EventData} newData New data from API
+   * Check for restarted drivers
+   * @param {Object} data Data from the API
+   * @param {string} rallyKey Rally ID
    * @returns {Array.<string>} List of restarters
    * @private
    */
-  _checkRestartedDrivers(oldData, newData) {
-    const oldRacesListByDrivers = {};
-    const newRacesListByDrivers = {};
+  _checkRestartedDrivers(data, rallyKey) {
     const restarters = [];
-
-    oldData.stages.forEach(stage => {
-      if (!stage.singlePage.hasOwnProperty("Entries")) {
-        return;
+    for (const name in data) {
+      if (!data.hasOwnProperty(name)) {
+        continue;
       }
-      stage.singlePage.Entries.forEach(entry => {
-        if (!oldRacesListByDrivers.hasOwnProperty(entry.Name)) {
-          oldRacesListByDrivers[entry.Name] = [];
-        }
-        oldRacesListByDrivers[entry.Name].push({
-          stage: stage.stage,
-          time: entry.Time
-        });
-      });
-    });
-    newData.stages.forEach(stage => {
-      stage.singlePage.Entries.forEach(entry => {
-        if (!newRacesListByDrivers.hasOwnProperty(entry.Name)) {
-          newRacesListByDrivers[entry.Name] = [];
-        }
-        newRacesListByDrivers[entry.Name].push({
-          stage: stage.stage,
-          time: entry.Time
-        });
-      });
-    });
-
-    for (const name in oldRacesListByDrivers) {
-      if (oldRacesListByDrivers.hasOwnProperty(name)) {
-        if (!newRacesListByDrivers.hasOwnProperty(name)) {
-          restarters.push(name);
+      const driver = data[name];
+      let matches = 0;
+      for (const stage in driver.times) {
+        if (!driver.times.hasOwnProperty(stage)) {
           continue;
         }
-        const driverOld = oldRacesListByDrivers[name];
-        const driverNew = newRacesListByDrivers[name];
-        if (driverNew.length < driverOld.length) {
-          restarters.push(name);
-          continue;
+        const time = driver.times[stage];
+        const match = this._checkTimeNameMatch(rallyKey, parseInt(stage, 10) + 1, time, name);
+        if (match) {
+          matches++;
         }
-        driverOld.forEach((entry, stageNumber) => {
-          if (entry.time !== driverNew[stageNumber].time) {
-            restarters.push(name);
-          }
-        });
+      }
+      if (matches < driver.times.length) {
+        restarters.push(name);
       }
     }
-
     return restarters;
+  }
+
+  /**
+   * Check if there has been a restart for a specific time entry
+   * @param {string} rallyKey Rally ID
+   * @param {number} stage Stage number
+   * @param {number} time Stage time
+   * @param {string} name Driver name
+   * @returns {boolean} False, if a restart was found
+   * @private
+   */
+  _checkTimeNameMatch(rallyKey, stage, time, name) {
+    const races = this._state.races[rallyKey];
+    for (const raceKey in races) {
+      if (!races.hasOwnProperty(raceKey)) {
+        continue;
+      }
+      const race = races[raceKey];
+
+      if (race.stage === stage && race.userName === name && race.time !== time) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
