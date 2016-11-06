@@ -11,11 +11,11 @@ class ResultsManager {
   /**
    * Calculate points for a rally
    * @param {string} id Rally ID
-   * @returns {Object} Class-separated list of finishers and their scores
+   * @returns {Object|boolean} Class-separated list of finishers and their scores or false
    */
   calculateRallyResults(id) {
     if (this._activeIDList.hasOwnProperty(id)) {
-      return;
+      return false;
     }
     this._activeIDList[id] = true;
 
@@ -23,16 +23,6 @@ class ResultsManager {
     const season = this._state.seasons[rally.season];
     const stageCount = season.stages;
     const races = this._state.races[id];
-
-    // let test = [];
-    // for (let i in races) {
-    //   if (races.hasOwnProperty(i)) {
-    //     let result = races[i];
-    //     if (result.userName === "KeryX") {
-    //       test.push(result);
-    //     }
-    //   }
-    // }
 
     const totalTimes = this._calculateTotalTimes(races);
 

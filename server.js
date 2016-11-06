@@ -433,7 +433,9 @@ class Server {
     if (amountAdded > 0) {
       console.log(`Added ${amountAdded} new times to the database: ${namesAdded.join(", ")}`);
       const scores = this.resultsManager.calculateRallyResults(rallyKey);
-      this.refList.rallyResults.child(rallyKey).set(scores);
+      if (scores !== false) {
+        this.refList.rallyResults.child(rallyKey).set(scores);
+      }
     }
 
     this._storeApiCache(data);
@@ -467,16 +469,10 @@ class Server {
    */
   _checkRestartedDrivers(data, rallyKey) {
     const restarters = [];
-    for (const name in data) {
-      if (!data.hasOwnProperty(name)) {
-        continue;
-      }
+    for (const name of Object.getOwnPropertyNames(data)) {
       const driver = data[name];
       let matches = 0;
-      for (const stage in driver.times) {
-        if (!driver.times.hasOwnProperty(stage)) {
-          continue;
-        }
+      for (const stage of Object.getOwnPropertyNames(driver.times)) {
         const time = driver.times[stage];
         const match = this._checkTimeNameMatch(rallyKey, parseInt(stage, 10) + 1, time, name);
         if (match) {
