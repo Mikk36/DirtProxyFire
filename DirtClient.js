@@ -332,6 +332,7 @@ class DirtClient {
    * @property {number} timeReal Actual time from first start of first request to finishing the last request
    * @property {APIResponseContainer|null} overallResponse API Response for stage 0 (overall) page 1
    * @property {Array.<string>} assisted List of people having assists enabled
+   * @property {string|number} timestamp Response data timestamp
    */
 
   /**

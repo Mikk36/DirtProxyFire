@@ -85,6 +85,14 @@ class Server {
 
     // this._addSeason("2016 II", "historic");
     // this._addRally("1. Rallye Monte-Carlo 2016 Historic", "-KRyIYnW-LXxXwalMSFw", [149003]);
+
+    // Fill eventData with data
+    // setTimeout(() => {
+    //   Object.keys(this._state.rallies).forEach(key => this._fetchApiCache(key));
+    //   setTimeout(() => {
+    //     Object.keys(this._state.apiCache).forEach(key => this._saveStageData(this._state.apiCache[key]));
+    //   }, 10000);
+    // }, 10000);
   }
 
   /**
@@ -150,7 +158,8 @@ class Server {
       races: this.db.ref("races"), // Individual race times
       drivers: this.db.ref("drivers"), // Driver real name, userNames
       rallyTeams: this.db.ref("rallyTeams"), // Team name, team drivers
-      apiCache: this.db.ref("apiCache")
+      apiCache: this.db.ref("apiCache"),
+      eventData: this.db.ref("eventData")
     };
   }
 
@@ -280,9 +289,42 @@ class Server {
     });
   }
 
+  /**
+   *  Store the API cache in the database
+   * @param {EventData} data Event data
+   * @private
+   */
   _storeApiCache(data) {
     this._state.apiCache[data.id] = data;
     this.refList.apiCache.child(data.id).set(data);
+
+    this._saveStageData(data);
+  }
+
+  /**
+   * Save stage data from Event data
+   * @param {EventData} data Event data
+   * @private
+   */
+  _saveStageData(data) {
+    const event = {
+      timestamp: data.timestamp
+    };
+    event.stages = data.stages.map(stage => {
+      const page = stage.singlePage;
+      return {
+        HasServiceArea: page.HasServiceArea,
+        LocationImage: page.LocationImage,
+        LocationName: page.LocationName,
+        StageImage: page.StageImage,
+        StageName: page.StageName,
+        TimeOfDay: page.TimeOfDay,
+        WeatherImageAltUrl: page.WeatherImageAltUrl,
+        WeatherImageUrl: page.WeatherImageUrl,
+        WeatherText: page.WeatherText
+      };
+    });
+    this.refList.eventData.child(data.id).set(event);
   }
 
   /**
