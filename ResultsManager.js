@@ -42,8 +42,8 @@ class ResultsManager {
     }
     /** @type {ClassFinishers} */
     const classFinishers = {};
-    for (const i of Object.getOwnPropertyNames(season.classes)) {
-      classFinishers[i] = {drivers: [], teams: []};
+    for (const raceClassID of Object.getOwnPropertyNames(season.classes)) {
+      classFinishers[raceClassID] = {drivers: [], teams: []};
     }
     finisherList.forEach(result => {
       const driverName = this._getDriverName(result.userName);

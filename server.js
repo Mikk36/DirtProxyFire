@@ -153,10 +153,10 @@ class Server {
     // Recalculate rally results for a rally
     // setTimeout(() => {
     //   let scores = this.resultsManager.calculateRallyResults("historic_2018_2_sweden");
-    //   // this.refList.rallyResults.child("historic_2018_2_sweden").set(scores).then(() => {
-    //   //   console.log(`Scores set`);
-    //   // });
-    //   console.log(typeof scores);
+    //   this.refList.rallyResults.child("historic_2018_2_sweden").set(scores).then(() => {
+    //     console.log(`Scores set`);
+    //   });
+    //   // console.log(typeof scores);
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
