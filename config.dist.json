@@ -1,5 +1,5 @@
 {
-  "listeningPort": 3021,
-  "cron": "*/3 * * * *",
-  "writeCache": false
+  "updateInterval": 60,
+  "writeCache": false,
+  "databaseURL": "https://<project ID>.firebaseio.com/"
 }

@@ -3,6 +3,9 @@
  */
 
 class ResultsManager {
+  /**
+   * @param {State} state State
+   */
   constructor(state) {
     this._state = state;
     this._activeIDList = {};
@@ -10,25 +13,26 @@ class ResultsManager {
 
   /**
    * Calculate points for a rally
-   * @param {string} id Rally ID
-   * @returns {Object|boolean} Class-separated list of finishers and their scores or false
+   * @param {string} rallyID Rally ID
+   * @returns {Object|undefined} Class-separated list of finishers and their scores or false
    */
-  calculateRallyResults(id) {
-    if (this._activeIDList.hasOwnProperty(id)) {
-      return false;
+  calculateRallyResults(rallyID) {
+    if (this._activeIDList.hasOwnProperty(rallyID)) {
+      return;
     }
-    this._activeIDList[id] = true;
+    this._activeIDList[rallyID] = true;
 
-    const rally = this._state.rallies[id];
+    const rally = this._state.rallies[rallyID];
     const season = this._state.seasons[rally.season];
     const stageCount = season.stages;
-    const races = this._state.races[id];
+    const races = this._state.races[rallyID];
 
     const totalTimes = this._calculateTotalTimes(races);
 
     // pointList
     const points = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
     const pointsPower = [3, 2, 1];
+    /** @type {Array.<Race>} */
     const finisherList = [];
     for (const i of Object.getOwnPropertyNames(races)) {
       const result = races[i];
@@ -36,103 +40,151 @@ class ResultsManager {
         finisherList.push(result);
       }
     }
+    /** @type {ClassFinishers} */
     const classFinishers = {};
     for (const i of Object.getOwnPropertyNames(season.classes)) {
       classFinishers[i] = {drivers: [], teams: []};
     }
     finisherList.forEach(result => {
-      if (!this._state.nicks.hasOwnProperty(result.userName)) {
-        // Driver has not registered
+      const driverName = this._getDriverName(result.userName);
+
+      if (!driverName) {
+        // Driver has not registered for EVAL
         return;
       }
 
-      const driver = this._state.nicks[result.userName];
-      const raceClass = ResultsManager._getClass(result.car, season);
+      const raceClassID = this.constructor._getClassID(result.car, season);
 
-      if (raceClass === null) {
+      if (raceClassID === null) {
         // Car is not listed as allowed
         return;
       }
-      if (!ResultsManager._checkAssists(result.assists, raceClass, season)) {
+      if (!this.constructor._checkAssists(result.assists, raceClassID, season)) {
         // Driver is using assists illegally
         return;
       }
-      if (ResultsManager._checkDQ(driver, rally)) {
+      if (this.constructor._checkDQ(driverName, rally)) {
         // Driver is disqualified
         return;
       }
-      if (ResultsManager._checkRestarts(driver, rally)) {
+      if (this.constructor._checkRestarts(driverName, rally)) {
         // Driver has restarted
         return;
       }
 
-      const team = ResultsManager._getDriverTeam(driver, raceClass, rally);
-      if (team === null) {
-        // Driver has not registered a team
+      const teamID = this.constructor._getDriverTeamID(driverName, raceClassID, rally);
+      if (teamID === null) {
+        // Driver has not registered a team / private team
         return;
       }
-      if (rally.teams[raceClass][team].car !== result.car) {
-        // Driver is using a car not assigned to the team
+      if (this.constructor._getTeam(teamID, raceClassID, rally).car !== result.car) {
+        // Driver is using a car not assigned to him/her
         return;
       }
 
-      classFinishers[raceClass].drivers.push({
-        name: driver,
-        team: team,
-        time: totalTimes[driver],
+      classFinishers[raceClassID].drivers.push({
+        name: driverName,
+        team: teamID,
+        time: totalTimes[driverName],
         powerTime: result.time,
         score: 0
       });
     });
 
     // Let's give out points
-    for (const i of Object.getOwnPropertyNames(classFinishers)) {
-      const raceClass = classFinishers[i].drivers;
+    for (const raceClassID of Object.getOwnPropertyNames(classFinishers)) {
+      const classDrivers = classFinishers[raceClassID].drivers;
       // Give points for finish time
-      raceClass.sort(ResultsManager._totalTimeSorter);
+      classDrivers.sort(this.constructor._totalTimeSorter);
       points.forEach((point, j) => {
-        if (j < raceClass.length) {
-          raceClass[j].score += point;
+        if (j < classDrivers.length) {
+          classDrivers[j].score += point;
         }
       });
       // Give points for powerStage time
-      raceClass.sort(ResultsManager._powerTimeSorter);
+      classDrivers.sort(this.constructor._powerTimeSorter);
       pointsPower.forEach((point, j) => {
-        if (j < raceClass.length) {
-          raceClass[j].score += point;
+        if (j < classDrivers.length) {
+          classDrivers[j].score += point;
         }
       });
       // Just sort the drivers by scores
-      raceClass.sort(ResultsManager._scoreSorter);
+      classDrivers.sort(this.constructor._scoreSorter);
 
-      raceClass.forEach(driver => {
-        let driverTeam = classFinishers[i].teams.find(team => {
+      classDrivers.forEach(driver => {
+        let finisherTeam = classFinishers[raceClassID].teams.find(team => {
           return team.id === driver.team;
         });
-        if (typeof driverTeam === "undefined") {
-          driverTeam = ResultsManager._getDriverTeam(driver.name, i, rally);
-          classFinishers[i].teams.push({
-            id: driverTeam,
-            score: driver.score
-          });
+        if (typeof finisherTeam === "undefined") {
+          // Add team as finisher
+          const teamID = this.constructor._getDriverTeamID(driver.name, raceClassID, rally);
+          const team = this.constructor._getTeam(teamID, raceClassID, rally);
+          // If team isn't set as private, add it to teams list
+          if (!team.private) {
+            classFinishers[raceClassID].teams.push({
+              id: teamID,
+              score: driver.score
+            });
+          }
         } else {
-          driverTeam.score += driver.score;
+          // Increase team score with drivers score
+          finisherTeam.score += driver.score;
         }
       });
-      classFinishers[i].teams.sort(ResultsManager._teamScoreSorter);
+      classFinishers[raceClassID].teams.sort(this.constructor._teamScoreSorter);
     }
 
-    this._removeActive(id);
+    this._removeActive(rallyID);
 
     return classFinishers;
   }
 
-  static _getDriverTeam(name, raceClass, rally) {
-    const teams = rally.teams[raceClass];
+  /**
+   * @param {string} name Team name
+   * @param {string} raceClassID Race class
+   * @param {Rally} rally Rally
+   * @returns {string|null} RallyTeam ID or null
+   * @private
+   */
+  static _getDriverTeamID(name, raceClassID, rally) {
+    if (!rally.teams[raceClassID]) {
+      // No raceClass teams found
+      return null;
+    }
+    const teams = rally.teams[raceClassID];
     for (const team of Object.getOwnPropertyNames(teams)) {
       if (teams[team].drivers.indexOf(name) >= 0) {
         return team;
       }
+    }
+    return null;
+  }
+
+  /**
+   * @param {string} id Team ID
+   * @param {string} raceClassID Class ID
+   * @param {Rally} rally Rally
+   * @returns {RallyTeam|null} Team or null
+   * @private
+   */
+  static _getTeam(id, raceClassID, rally) {
+    if (
+        rally.teams &&
+        rally.teams[raceClassID] &&
+        rally.teams[raceClassID][id]
+    )
+      return rally.teams[raceClassID][id];
+    return null;
+  }
+
+  /**
+   * @param {string} nick Nickname
+   * @returns {string|null} Driver name or null
+   * @private
+   */
+  _getDriverName(nick) {
+    if (this._state.nicks.hasOwnProperty(nick)) {
+      return this._state.nicks[nick];
     }
     return null;
   }
@@ -186,7 +238,7 @@ class ResultsManager {
       return 1;
     }
     if (result1.score === result2.score) {
-      return ResultsManager._totalTimeSorter(result1, result2);
+      return this.constructor._totalTimeSorter(result1, result2);
     }
     return 0;
   }
@@ -210,16 +262,17 @@ class ResultsManager {
 
   /**
    * Sum up total racetimes for registered drivers
-   * @param {Object} races Race results
-   * @returns {Object} List of total times by driver
+   * @param {Object.<string, Race>} races Race results
+   * @returns {Object.<string, number>} List of total times by driver
    * @private
    */
   _calculateTotalTimes(races) {
     const totals = {};
     for (const i of Object.getOwnPropertyNames(races)) {
       const race = races[i];
-      if (this._state.nicks.hasOwnProperty(race.userName)) {
-        totals[this._state.nicks[race.userName]] = (totals[this._state.nicks[race.userName]] || 0) + race.time;
+      const driverName = this._getDriverName(race.userName);
+      if (driverName) {
+        totals[driverName] = (totals[driverName] || 0) + race.time;
       }
     }
     return totals;
@@ -227,18 +280,18 @@ class ResultsManager {
 
   /**
    * Check if a driver is disqualified from a rally
-   * @param {string} driver Driver name
-   * @param {Object} rally Rally to check against
+   * @param {string} driverName Driver name
+   * @param {Rally} rally Rally to check against
    * @returns {boolean} True, if driver is disqualified
    * @private
    */
-  static _checkDQ(driver, rally) {
+  static _checkDQ(driverName, rally) {
     if (!rally.hasOwnProperty("penalties")) {
       return false;
     }
     for (const i of Object.getOwnPropertyNames(rally.penalties)) {
       const penalty = rally.penalties[i];
-      if (penalty.driver === driver && penalty.hasOwnProperty("dq") && penalty.dq === true) {
+      if (penalty.driver === driverName && penalty.hasOwnProperty("dq") && penalty.dq === true) {
         return true;
       }
     }
@@ -247,14 +300,14 @@ class ResultsManager {
 
   /**
    * Check if a driver has restarted
-   * @param {string} driver Driver name
-   * @param {Object} rally Rally to check against
+   * @param {string} driverName Driver name
+   * @param {Rally} rally Rally to check against
    * @returns {boolean} True, if driver has restarted
    * @private
    */
-  static _checkRestarts(driver, rally) {
+  static _checkRestarts(driverName, rally) {
     if (rally.hasOwnProperty("restarters")) {
-      return rally.restarters.indexOf(driver) >= 0;
+      return rally.restarters.indexOf(driverName) >= 0;
     }
     return false;
   }
@@ -262,26 +315,26 @@ class ResultsManager {
   /**
    * Check if assists usage is ok
    * @param {boolean} assists Assists used or not
-   * @param {string} className Class the driver drove in
-   * @param {Object} season Season to check against
+   * @param {string} raceClassID Class the driver drove in
+   * @param {Season} season Season to check against
    * @returns {boolean} True, if check is passed
    * @private
    */
-  static _checkAssists(assists, className, season) {
-    if (typeof season.classes[className].assists === "undefined") {
+  static _checkAssists(assists, raceClassID, season) {
+    if (typeof season.classes[raceClassID].assists === "undefined") {
       return true;
     }
-    return !(assists === true && season.classes[className].assists === false);
+    return !(assists === true && season.classes[raceClassID].assists === false);
   }
 
   /**
    * Gets a car class or null
    * @param {string} car Car name
-   * @param {Object} season Season to check against
+   * @param {Season} season Season to check against
    * @returns {string|null} Class id or null if not found
    * @private
    */
-  static _getClass(car, season) {
+  static _getClassID(car, season) {
     const classes = season.classes;
     for (const seasonClass of Object.getOwnPropertyNames(classes)) {
       const testClass = classes[seasonClass];
@@ -301,6 +354,33 @@ class ResultsManager {
     delete this._activeIDList[id];
     // console.log(`Removed ${id} from active list`);
   }
+
+  // classFinishers[i] = {drivers: [], teams: []};
+  /**
+   * Contains keys of race classes
+   * @typedef {Object.<string, ClassResults>} ClassFinishers
+   */
+
+  /**
+   * @typedef {Object} ClassResults
+   * @property {Array.<ClassFinisherDriver>} drivers
+   * @property {Array.<ClassFinisherTeam>} teams
+   */
+
+  /**
+   * @typedef {Object} ClassFinisherDriver
+   * @property {string} name Driver name
+   * @property {string} team Team ID
+   * @property {number} time
+   * @property {number} powerTime
+   * @property {number} score
+   */
+
+  /**
+   * @typedef {Object} ClassFinisherTeam
+   * @property {string} id Team ID
+   * @property {number} score Team score
+   */
 }
 
 module.exports = ResultsManager;

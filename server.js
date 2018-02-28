@@ -8,24 +8,107 @@ require("console-stamp")(console, {
 });
 const fs = require("fs-extra");
 const jsonFile = require("jsonfile");
-const firebase = require("firebase");
-// const express = require("express");
-// const morgan = require("morgan");
-// const http = require("https");
-// const schedule = require("node-schedule");
+const firebase = require("firebase-admin");
 const DirtClient = require("./DirtClient");
 const ResultsManager = require("./ResultsManager");
 
 class Server {
+  /**
+   * @typedef {Object} Config
+   * @property {number} updateInterval
+   * @property {boolean} writeCache
+   * @property {string} databaseURL
+   */
+
+  /**
+   * State
+   * @typedef {Object} State
+   * @property {Object.<string, Rally>} rallies
+   * @property {Object.<string, Season>} seasons
+   * @property {Object.<string, Object.<string, Race>>} races
+   * @property {Object.<string, League>} leagues
+   * @property {Object.<string, Driver>} drivers
+   * @property {Object.<string, string>} nicks
+   * @property {Array.<string>} activeRallyList List of active Rally IDs
+   * @property {Object.<string, EventData> apiCache
+   */
+
+  /**
+   * @typedef {Object} Driver
+   * @property {Object.<string, string>} nicks
+   */
+
+  /**
+   * @typedef {Object} League
+   * @property {string} name
+   * @property {number} order Sorting order
+   * @property {Array.<string>} seasons List of Season IDs
+   */
+
+  /**
+   * @typedef {Object} Race
+   * @property {boolean} assists
+   * @property {string} car
+   * @property {number} stage
+   * @property {number} time
+   * @property {string} timestamp
+   * @property {string} userName
+   */
+
+  /**
+   * @typedef {Object} RallyTeam
+   * @property {string} car
+   * @property {string} name
+   * @property {Array.<string>} drivers
+   * @property {boolean} private Private drivers team
+   */
+
+  /**
+   * @typedef {Object} Season
+   * @property {Object.<string, Class>} classes Classes
+   * @property {string} league League ID
+   * @property {string} name League name
+   * @property {Array.<string>} rallies List of rally IDs
+   * @property {Number} stages Stage count
+   */
+
+  /**
+   * @typedef {Object} Class
+   * @property {Array.<string>} cars List of car names
+   * @property {string} name Class name
+   */
+
+  /**
+   * @typedef {Object} Rally
+   * @property {string} league League ID
+   * @property {string} name Rally name
+   * @property {string} season Season ID
+   * @property {Boolean} finished Is rally finished
+   * @property {Array.<Number>} eventIDList List of eventIDs
+   * @property {Array.<string>} restarters List of restarting drivers
+   * @property {Object.<string, Penalty>} penalties List of penalties
+   * @property {Object.<string, RallyTeam>} teams
+   */
+
+  /**
+   * @typedef {Object} Penalty
+   * @property {Boolean} dq Is driver disqualified
+   * @property {string} driver Driver name
+   * @property {string} message Penalty reason
+   */
+
   constructor() {
     this.config = Server._loadConfig();
-    Server._createCacheFolder();
+    if (this.config.writeCache) {
+      Server._createCacheFolder();
+    }
 
     firebase.initializeApp({
-      serviceAccount: "./firebase-service-account.json",
-      databaseURL: "https://eval-dirt.firebaseio.com/"
+      credential: firebase.credential.cert(require("./firebase-service-account.json")),
+      databaseURL: this.config.databaseURL
     });
     this.db = firebase.database();
+    /** @type {State} */
     this._state = {
       leagues: {},
       seasons: {},
@@ -69,8 +152,11 @@ class Server {
     //   });
     // Recalculate rally results for a rally
     // setTimeout(() => {
-    //   let scores = this.resultsManager.calculateRallyResults("-KRzKPDdmSxQq_EdUbzU");
-    //   this.refList.rallyResults.child("-KRzKPDdmSxQq_EdUbzU").set(scores);
+    //   let scores = this.resultsManager.calculateRallyResults("historic_2018_2_sweden");
+    //   // this.refList.rallyResults.child("historic_2018_2_sweden").set(scores).then(() => {
+    //   //   console.log(`Scores set`);
+    //   // });
+    //   console.log(typeof scores);
     // }, 10000);
 
     // this.dirtClient.fetchData(149001).then(/** EventData */data => { // eslint-disable-line valid-jsdoc
@@ -117,7 +203,7 @@ class Server {
       this._state.activeRallyList.forEach(rallyKey => {
         this._updateRallyTimes(rallyKey);
       });
-    }, 60 * 1000);
+    }, this.config.updateInterval * 1000);
   }
 
   /**
@@ -127,7 +213,7 @@ class Server {
    */
   _updateRallyTimes(rallyKey) {
     const rally = this._state.rallies[rallyKey];
-    rally.eventIDList.forEach(/** number */ eventID => { // eslint-disable-line valid-jsdoc
+    rally.eventIDList.forEach(/** number */eventID => { // eslint-disable-line valid-jsdoc
       this.dirtClient.fetchData(eventID).then(data => {
         this._analyzeAPI(data, rallyKey);
         if (this.config.writeCache) {
@@ -285,7 +371,7 @@ class Server {
         if (val !== null) {
           this._state.apiCache[id] = val;
         }
-      });
+      }).then();
     });
   }
 
@@ -296,7 +382,7 @@ class Server {
    */
   _storeApiCache(data) {
     this._state.apiCache[data.id] = data;
-    this.refList.apiCache.child(data.id).set(data);
+    this.refList.apiCache.child(data.id.toString()).set(data).then();
 
     this._saveStageData(data);
   }
@@ -324,7 +410,7 @@ class Server {
         WeatherText: page.WeatherText
       };
     });
-    this.refList.eventData.child(data.id).set(event);
+    this.refList.eventData.child(data.id.toString()).set(event).then();
   }
 
   /**
@@ -365,7 +451,7 @@ class Server {
           car === race.car
       ) {
         if (assists !== race.assists) {
-          this.refList.races.child(rallyKey).child(key).child("assists").set(assists);
+          this.refList.races.child(rallyKey).child(key).child("assists").set(assists).then();
         }
         return false;
       }
@@ -379,10 +465,11 @@ class Server {
       assists: assists,
       timestamp: (new Date()).toJSON()
     };
-    this.refList.races.child(rallyKey).push(result);
+    this.refList.races.child(rallyKey).push(result).then();
     return true;
   }
 
+  // noinspection JSUnusedGlobalSymbols
   /**
    * Add a season to the DB
    * @param {string} name Season name
@@ -393,9 +480,12 @@ class Server {
     this.refList.seasons.push({
       name: name,
       league: leagueKey
+    }).then(() => {
+      console.log(`Season ${name} added`);
     });
   }
 
+  // noinspection JSUnusedGlobalSymbols
   /**
    * Add a rally
    * @param {string} name Rally name
@@ -409,6 +499,8 @@ class Server {
       season: seasonKey,
       eventIDList: eventIDList,
       finished: false
+    }).then(() => {
+      console.log(`Rally ${name} added`);
     });
   }
 
@@ -475,8 +567,8 @@ class Server {
     if (amountAdded > 0) {
       console.log(`Added ${amountAdded} new times to the database: ${namesAdded.join(", ")}`);
       const scores = this.resultsManager.calculateRallyResults(rallyKey);
-      if (scores !== false) {
-        this.refList.rallyResults.child(rallyKey).set(scores);
+      if (scores) {
+        this.refList.rallyResults.child(rallyKey).set(scores).then();
       }
     }
 
@@ -499,7 +591,7 @@ class Server {
         rally.restarters.push(name);
       }
     });
-    this.refList.rallies.child(rallyKey).child("restarters").set(rally.restarters);
+    this.refList.rallies.child(rallyKey).child("restarters").set(rally.restarters).then();
   }
 
   /**
@@ -571,7 +663,7 @@ class Server {
 
   /**
    * Retrieves the configuration
-   * @returns {Object} Configuration object
+   * @returns {Config} Configuration object
    * @private
    */
   static _loadConfig() {

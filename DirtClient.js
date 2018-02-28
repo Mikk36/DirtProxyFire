@@ -25,8 +25,9 @@ class DirtClient {
       requestCount: 1,
       timeTotal: 0,
       timeReal: 0,
-      overallResponse: null,
-      assisted: []
+      overallResponse: undefined,
+      assisted: [],
+      timestamp: undefined
     };
     const start = Date.now();
 
@@ -55,7 +56,7 @@ class DirtClient {
             });
           }));
         }
-        Promise.all(stagePromises).then(/** Array.<StageData> */ results => { // eslint-disable-line valid-jsdoc
+        Promise.all(stagePromises).then(/** Array.<StageData> */results => { // eslint-disable-line valid-jsdoc
           // combine results
           eventData.timeReal = Date.now() - start;
           console.log(`${eventData.id} fetched in ${(eventData.timeReal / 1000).toFixed(1)} seconds`);
@@ -136,7 +137,7 @@ class DirtClient {
         });
       }));
     }
-    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */ results => { // eslint-disable-line valid-jsdoc
+    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */results => { // eslint-disable-line valid-jsdoc
       results.forEach(pageData => {
         assistResponse.requestCount++;
         assistResponse.timeTotal += pageData.responseTime;
@@ -168,7 +169,8 @@ class DirtClient {
       requestCount: 1,
       pageCount: data.response.Pages,
       timeTotal: data.responseTime,
-      pages: [data]
+      pages: [data],
+      singlePage: undefined
     };
 
     const pagePromises = [];
@@ -182,7 +184,7 @@ class DirtClient {
         });
       }));
     }
-    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */ results => { // eslint-disable-line valid-jsdoc
+    Promise.all(pagePromises).then(/** Array.<APIResponseContainer> */results => { // eslint-disable-line valid-jsdoc
       // console.log(`Stage ${stageData.stage} finished`);
       results.forEach(pageData => {
         stageData.pages[pageData.page - 1] = pageData;
@@ -190,7 +192,7 @@ class DirtClient {
         stageData.timeTotal += pageData.responseTime;
       });
 
-      stageData.pages.forEach(/** APIResponseContainer */ page => { // eslint-disable-line valid-jsdoc
+      stageData.pages.forEach(/** APIResponseContainer */page => { // eslint-disable-line valid-jsdoc
         if (page.page === 1) {
           stageData.singlePage = page.response;
         } else {
@@ -231,7 +233,12 @@ class DirtClient {
         });
         res.on("end", () => {
           try {
+            /** @type {APIResponse} */
             const data = JSON.parse(body);
+            if (data.EventName === null) {
+              reject(new Error("Empty response from RaceNet"));
+              return;
+            }
             resolve({
               id: id,
               stage: stage,
@@ -267,7 +274,7 @@ class DirtClient {
   /**
    * API Response
    * @typedef {Object} APIResponse
-   * @property {string} EventName
+   * @property {String} EventName
    * @property {number} TotalStages
    * @property {boolean} ShowStageInfo
    * @property {string} LocationName
@@ -318,8 +325,8 @@ class DirtClient {
    * @property {number} requestCount
    * @property {number} pageCount
    * @property {number} timeTotal
-   * @property {Array.<APIResponseContainer>|undefined} pages
-   * @property {APIResponse|undefined} singlePage
+   * @property {Array.<APIResponseContainer>} pages
+   * @property {APIResponse} singlePage
    */
 
   /**
@@ -330,9 +337,9 @@ class DirtClient {
    * @property {number} requestCount Amount of requests made
    * @property {number} timeTotal Total sum of time taken for each request separately
    * @property {number} timeReal Actual time from first start of first request to finishing the last request
-   * @property {APIResponseContainer|null} overallResponse API Response for stage 0 (overall) page 1
+   * @property {APIResponseContainer|undefined} overallResponse API Response for stage 0 (overall) page 1
    * @property {Array.<string>} assisted List of people having assists enabled
-   * @property {string|number} timestamp Response data timestamp
+   * @property {string|number|undefined} timestamp Response data timestamp
    */
 
   /**
