@@ -24,7 +24,7 @@ class ResultsManager {
 
     const rally = this._state.rallies[rallyID];
     const season = this._state.seasons[rally.season];
-    const stageCount = season.stages;
+    const stageCount = rally.stages;
     const races = this._state.races[rallyID];
 
     const totalTimes = this._calculateTotalTimes(races);

@@ -69,7 +69,6 @@ class Server {
    * @property {string} league League ID
    * @property {string} name League name
    * @property {Array.<string>} rallies List of rally IDs
-   * @property {Number} stages Stage count
    */
 
   /**
@@ -83,8 +82,9 @@ class Server {
    * @property {string} league League ID
    * @property {string} name Rally name
    * @property {string} season Season ID
-   * @property {Boolean} finished Is rally finished
-   * @property {Array.<Number>} eventIDList List of eventIDs
+   * @property {number} stages Stage count
+   * @property {boolean} finished Is rally finished
+   * @property {Array.<number>} eventIDList List of eventIDs
    * @property {Array.<string>} restarters List of restarting drivers
    * @property {Object.<string, Penalty>} penalties List of penalties
    * @property {Object.<string, RallyTeam>} teams
