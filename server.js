@@ -366,7 +366,7 @@ class Server {
 
   _fetchApiCache(rallyKey) {
     this._state.rallies[rallyKey].eventIDList.forEach(id => {
-      this.refList.apiCache.child(id).once("value", snap => {
+      this.refList.apiCache.child(id.toString()).once("value", snap => {
         const val = snap.val();
         if (val !== null) {
           this._state.apiCache[id] = val;
